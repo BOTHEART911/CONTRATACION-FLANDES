@@ -266,8 +266,92 @@
     };
   };
 
+  /* ══════════════ 5.3 · revisar cuentas ══════════════ */
+  function RV() { return window.REVISION || null; }
+  function diasDe(f) {
+    var d = parseFecha(f); if (!d) return null;
+    var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    return Math.round((hoy - d) / 864e5);
+  }
+
+  GUIAS.revisar = function () {
+    return {
+      guia: 'Aquí están las cuentas que el **supervisor ya revisó** y esperan a Contratación, de la más antigua a la más nueva. ' +
+            '**Sin abrir** nadie las ha tocado; **En revisión** alguien ya dejó notas (solo es un aviso, no bloquea); **Vuelven corregidas** ya se devolvieron antes.',
+      botones: [
+        { texto: '¿Cuál lleva más días esperando?', responde: function () {
+            var c = RV() ? RV()._cuentas() : [];
+            if (!c.length) return '¡Ninguna! Estás al día.';
+            var o = c.slice().sort(function (a, b) { return (diasDe(b.radicada) || 0) - (diasDe(a.radicada) || 0); });
+            return listaCorta(o, function (x) {
+              var d = diasDe(x.radicada);
+              return '· **' + nombre(x.nombre) + '** — cuenta ' + x.informe + ' de ' + x.total + (d !== null ? ', radicada hace ' + d + (d === 1 ? ' día' : ' días') : '');
+            }, 6);
+          } },
+        { texto: '¿Cuáles vuelven corregidas?', responde: function () {
+            var c = (RV() ? RV()._cuentas() : []).filter(function (x) { return x.devoluciones; });
+            if (!c.length) return 'Ninguna: todas llegan por primera vez.';
+            return listaCorta(c, function (x) {
+              return '· **' + nombre(x.nombre) + '** (cuenta ' + x.informe + ')' + (x.ultimaDevolucion && x.ultimaDevolucion.motivo ? ': «' + x.ultimaDevolucion.motivo + '»' : '');
+            }, 6);
+          } },
+        { texto: '¿Quién está revisando qué?', responde: function () {
+            var c = (RV() ? RV()._cuentas() : []).filter(function (x) { return x.revision; });
+            if (!c.length) return 'Nadie tiene revisiones a medias.';
+            return listaCorta(c, function (x) {
+              return '· **' + nombre(x.revision.por) + '** con ' + nombre(x.nombre) + ' (desde ' + x.revision.desde + ', ' + x.revision.notas + ' notas)';
+            }, 8);
+          } }
+      ]
+    };
+  };
+
+  GUIAS.cuenta = function () {
+    return {
+      guia: 'Revisa por pestañas: **Contrato**, **Pago**, **Planilla** y **Actividades**. Cada documento se abre en el visor (lo puedes encoger y mover) y cada evidencia en el carrusel con zoom. ' +
+            'Marca con ✓ lo revisado y deja **notas internas** donde haga falta. **Guardar revisión** no cambia el estado: la retomas donde quedaste. ' +
+            'Al **devolver**, tus notas pasan al motivo con un toque; el contratista solo lee el motivo.',
+      botones: [
+        { texto: '¿Qué me falta por mirar?', responde: function () {
+            var r = RV(); if (!r || !r._detalle()) return 'La cuenta todavía está cargando.';
+            var B = r._bitacora(), docs = r._docs(), d = r._detalle();
+            var fd = docs.filter(function (x) { return !B.vistos['doc:' + x.id]; });
+            var fo = d.obligaciones.filter(function (o) { return !B.vistos['obl:' + o.n]; });
+            if (!fd.length && !fo.length) return 'Nada: ya marcaste todo como revisado.';
+            var t = [];
+            if (fo.length) t.push('**Obligaciones:** ' + fo.map(function (o) { return o.n; }).join(', '));
+            if (fd.length) t.push('**Documentos:** ' + fd.map(function (x) { return x.titulo; }).join(', '));
+            return t.join('\n');
+          } },
+        { texto: '¿Cuadran los saldos?', responde: function () {
+            var r = RV(), d = r && r._detalle(); if (!d) return 'La cuenta todavía está cargando.';
+            var k = d.cuenta.campos || {}, h = d.historial || [];
+            var s = K.aNumero(k.saldo), c = K.aNumero(k.cobro), n = K.aNumero(k.nuevoSaldo);
+            var t = 'Saldo **' + pesos(s) + '** − cobro **' + pesos(c) + '** = ' + pesos(s - c) + (Math.abs(s - c - n) > 1 ? ' ⚠ y declaró **' + pesos(n) + '**.' : ' ✓');
+            var i = -1; h.forEach(function (x, j) { if (x.actual) i = j; });
+            if (i > 0) {
+              var a = h[i - 1];
+              t += '\nLa cuenta ' + a.informe + ' dejó **' + pesos(a.nuevoSaldo) + '**' + (Math.abs(a.nuevoSaldo - s) > 1 ? ' ⚠ no coincide con el saldo actual.' : ' ✓ coincide.');
+            }
+            return t;
+          } },
+        { texto: '¿Por qué la devolvieron antes?', responde: function () {
+            var r = RV(), d = r && r._detalle(); if (!d) return 'La cuenta todavía está cargando.';
+            var dev = (d.traza.eventos || []).filter(function (e) { return e.estado === 'DEVUELTA'; });
+            if (!dev.length) return 'Es la primera vez que llega: no la han devuelto.';
+            return dev.map(function (e) { return '· **' + e.fecha + '**' + (e.quien ? ' (' + nombre(e.quien) + ')' : '') + ': «' + (e.motivo || 'sin motivo escrito') + '»'; }).join('\n');
+          } },
+        { texto: '¿A nombre de quién sale el aviso?', responde: function () {
+            var r = RV(), d = r && r._detalle(); if (!d) return 'La cuenta todavía está cargando.';
+            return 'De **' + nombre(d.cuenta.supervisor) + '**, el supervisor del contrato. Quién revisó de verdad queda en la historia de la cuenta (solo lo ve Contratación).';
+          } }
+      ]
+    };
+  };
+
   var TITULOS = { inicio: 'Tu inicio', contratistas: 'CONTRATISTAS', contratista: 'Ficha del contratista',
-                  agregar: 'Agregar contratista', adicion: 'Adición', cesion: 'Cesión', suspension: 'Suspensión' };
+                  agregar: 'Agregar contratista', adicion: 'Adición', cesion: 'Cesión', suspension: 'Suspensión',
+                  revisar: 'Revisar cuentas', cuenta: 'Revisión de cuenta' };
 
   function montar(vista, extra) {
     if (!K.piezas.insights) return;

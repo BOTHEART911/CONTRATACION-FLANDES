@@ -4,7 +4,7 @@ App de **Contratación** de la **Alcaldía de Flandes**. Ecosistema Flandes, Fas
 
 Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 
-## Qué hay aquí (hasta la entrega 5.1.1)
+## Qué hay aquí (hasta la entrega 5.3)
 
 - Entrada por el FLANDES-CORE con documento y contraseña (roles CREADOR y REVISOR; el DEV entra a todo).
 - Inicio con el resumen de los contratos (activos, adicionados, cedidos y activos por secretaría).
@@ -13,6 +13,8 @@ Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 - Informes por tramo en la ficha: primario, 1ª adición y total por separado (5.1.2).
 - Botón Refrescar con la hora de la última carga, orden (A→Z, contrato más nuevo, termina primero), barra del plazo y documento que se copia al tocarlo.
 - Soporte en el menú del perfil: se guarda en la hoja SOPORTE (la responde ADMIN) y avisa al grupo de desarrollo.
+- Agregar contratista, adición, cesión y suspensión (5.2).
+- REVISAR CUENTAS (5.3): la lista de lo que el supervisor ya revisó (pastillas sin abrir / en revisión / vuelven corregidas, secretaría, buscador, Refrescar), el detalle en pestañas (Contrato, Pago, Planilla, Actividades, Bitácora) con el visor multidocumento y el carrusel con zoom de las evidencias, la bitácora de notas internas que se guarda sin decidir y se retoma, y la decisión (aprobar o devolver) que sale a nombre del supervisor.
 - Foto de perfil (la misma en las siete apps), Insights en todas las vistas, PWA instalable y modo oscuro.
 
 ## Estructura
@@ -23,6 +25,8 @@ js/                         el código propio de esta app
   marca.js                  LO ÚNICO que cambia al mover el CORE o replicar la app
   app.js                    arranque, enrutador e inicio
   contratistas.js           la lista y la ficha de los contratistas
+  gestion.js                agregar, adición, cesión y suspensión
+  revision.js               revisar cuentas: lista, detalle, bitácora y decisión
   ayuda.js                  la guía de Insights de cada vista
 styles.css                  la hoja de CONTRATISTA-FLANDES + el bloque de Contratación
 manifest.json               PWA

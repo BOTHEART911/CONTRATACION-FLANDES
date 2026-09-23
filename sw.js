@@ -41,6 +41,7 @@ var ARMAZON = [
   './js/contratistas.js',
   './js/ayuda.js',
   './js/gestion.js',
+  './js/revision.js',
   './img/icono-32.png',
   './img/icono-180.png',
   './img/icono-192.png',
@@ -72,7 +73,9 @@ var ARMAZON = [
   './kit/adjuntos.js', './kit/adjuntos.css',
   './kit/imagenes.js',
   './kit/soporte.js', './kit/soporte.css',
-  './kit/fechas.js', './kit/fechas.css'
+  './kit/fechas.js', './kit/fechas.css',
+  /* 5.3 · revisión de cuentas */
+  './kit/carrusel.js', './kit/carrusel.css'
 ];
 
 self.addEventListener('install', function (e) {
