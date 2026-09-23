@@ -4,7 +4,7 @@ App de **Contratación** de la **Alcaldía de Flandes**. Ecosistema Flandes, Fas
 
 Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 
-## Qué hay aquí (hasta la entrega 5.5)
+## Qué hay aquí (hasta la entrega 6.1)
 
 - Entrada por el FLANDES-CORE con documento y contraseña (roles CREADOR y REVISOR; el DEV entra a todo).
 - Inicio con el resumen de los contratos (activos, adicionados, cedidos y activos por secretaría).
@@ -51,3 +51,4 @@ Pendiente de llevar a KIT-FLANDES (5.4): `kit/visor.js` (bytes directos, un solo
 ---
 
 Desarrollo: **Oscar Polania** · Experto en soluciones digitales
+- REPORTE en PDF (6.1): informe gerencial por bloques (resumen, un grupo por quien revisó y una ficha por cuenta con APROBADA/DEVUELTA y el motivo completo), no la tabla del Excel.

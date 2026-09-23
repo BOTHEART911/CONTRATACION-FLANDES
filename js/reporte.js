@@ -1,5 +1,5 @@
 /* ============================================================
-   CONTRATACION-FLANDES · REPORTE DE CONTRATACIÓN (entrega 5.4)
+   CONTRATACION-FLANDES · REPORTE DE CONTRATACIÓN (entrega 5.4; 6.1: PDF por bloques)
 
    Las cuentas que Contratación APROBÓ o DEVOLVIÓ en un rango de fechas,
    con QUIÉN LAS REVISÓ DE VERDAD. Nunca el nombre del supervisor: desde
@@ -319,7 +319,7 @@
     { campo: function (f) { return f.revisor || 'Sin registro'; }, titulo: 'Revisó' },
     { campo: 'sup', titulo: 'Supervisor' },
     { campo: 'sec', titulo: 'Secretaría' },
-    { campo: 'motivo', titulo: 'Motivo de la devolución' }
+    { campo: 'motivo', titulo: 'Motivo de la devolución', largo: true }
   ];
   var COLS_XLS = COLS.concat([
     { campo: function (f) { return ORIGEN[f.origen || '']; }, titulo: 'De dónde sale quién revisó' },
@@ -336,6 +336,36 @@
     return t.join(' · ');
   }
 
+  /* 6.1 · EL PDF ES UN INFORME, NO LA TABLA DEL EXCEL (regla de Oss, 23/09).
+     Arriba las cifras; después una ficha por cuenta, agrupadas por QUIÉN
+     REVISÓ, con su estado de color y el motivo completo de la devolución.
+     El Excel sigue plano (una fila por cuenta) para trabajar los datos. */
+  function informe(filas) {
+    var a = filas.filter(function (f) { return f.estado === 'A'; }).length;
+    var revs = {};
+    filas.forEach(function (f) { revs[f.revisor || 'Sin registro'] = 1; });
+    return {
+      subtitulo: subtitulo(filas),
+      bloque: {
+        titulo: function (f) { return O.nombre(f.nombre); },
+        sub: function (f) {
+          return 'Contrato ' + (f.contrato || '?') + ' · cuenta ' + (f.informe || '?') + ' de ' + (f.total || '?') +
+            ' · ' + O.fecha(f.fecha) + (f.hora ? ' ' + f.hora : '');
+        },
+        marca: function (f) { return f.estado === 'D' ? 'DEVUELTA' : 'APROBADA'; },
+        tono: function (f) { return f.estado === 'D' ? 'malo' : 'ok'; },
+        omitir: ['Fecha', 'Estado', 'Contratista', 'Contrato', 'Cuenta', 'Revisó']
+      },
+      grupo: function (f) { return 'Revisó: ' + (f.revisor ? O.nombre(f.revisor) : 'sin registro'); },
+      resumen: [
+        { etiqueta: 'Cuentas', valor: K.numero(filas.length) },
+        { etiqueta: 'Aprobadas', valor: K.numero(a), tono: 'ok' },
+        { etiqueta: 'Devueltas', valor: K.numero(filas.length - a), tono: 'malo' },
+        { etiqueta: Object.keys(revs).length === 1 ? 'Revisor' : 'Revisores', valor: K.numero(Object.keys(revs).length) }
+      ]
+    };
+  }
+
   function bajar(formato, boton) {
     if (!K.piezas.exportar) { K.aviso('La descarga no está disponible en esta versión.', 'aviso'); return; }
     var filas = filtradas();
@@ -343,7 +373,7 @@
     var nombre = 'Reporte de Contratación ' + (F.desde ? O.fecha(F.desde).replace(/\//g, '-') : '') + (F.hasta && F.hasta !== F.desde ? ' a ' + O.fecha(F.hasta).replace(/\//g, '-') : '');
     boton.disabled = true; boton.classList.add('kit-ocupado');
     var p = formato === 'pdf'
-      ? K.piezas.exportar.aPDF(nombre.trim(), COLS, filas, { orientacion: 'landscape', subtitulo: subtitulo(filas) })
+      ? K.piezas.exportar.aPDF(nombre.trim(), COLS, filas, informe(filas))
       : K.piezas.exportar.aExcel(nombre.trim(), COLS_XLS, filas);
     Promise.resolve(p).then(function (r) {
       K.aviso(r === 'csv' ? 'No cargó Excel: se descargó en CSV (Excel lo abre).' : (r === 'impresion' ? 'Guárdalo como PDF desde la ventana de impresión.' : 'Descargado.'), 'ok', 3500);
@@ -358,6 +388,7 @@
     olvidar: function () { DATA = null; K.guardar.borrar(FILTRO_K); F = leerFiltro(); },
     _datos: function () { return DATA; },
     _filtradas: filtradas,
-    _rango: textoRango
+    _rango: textoRango,
+    _informe: informe
   };
 }());
