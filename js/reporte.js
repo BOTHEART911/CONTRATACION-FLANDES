@@ -78,7 +78,7 @@
   function cargar(fresco) {
     if (DATA && !fresco) return Promise.resolve(DATA);
     if (CARGANDO && !fresco) return CARGANDO;
-    CARGANDO = O.leer('reporte').then(function (d) { CARGANDO = null; recibir(d); return DATA; },
+    CARGANDO = O.leer('reporte', { fresco: !!fresco }).then(function (d) { CARGANDO = null; recibir(d); return DATA; },
       function (e) { CARGANDO = null; throw e; });
     return CARGANDO;
   }

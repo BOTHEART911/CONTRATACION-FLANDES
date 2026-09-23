@@ -230,6 +230,7 @@
     if (window.REQS) window.REQS.olvidar();
     if (window.COMUS) window.COMUS.olvidar();
     if (window.REPORTE) window.REPORTE.olvidar();
+    vistaInicio._reporte = false;
     K.piezas.sesion.salir();
     location.hash = '';
   }
@@ -326,8 +327,9 @@
     if (K.piezas.cielo) K.piezas.cielo.poner(saludo, { burbujas: 3 });
     caja.appendChild(saludo);
 
+    /* 5.4.1 · el resumen va DEBAJO de los accesos: lo primero es lo que
+       la persona vino a hacer; las cifras son consulta. */
     var destino = K.nodo('<section class="resumen"></section>');
-    caja.appendChild(destino);
 
     var primero = null;
     function bloque(titulo, tarjetas) {
@@ -376,6 +378,10 @@
     }
     if (oficina.length) bloque('OFICINA', oficina);
 
+    var sRes = K.nodo('<section class="bloque" aria-label="Resumen de contratos"><h3 class="bloque__t">RESUMEN DE CONTRATOS</h3></section>');
+    sRes.appendChild(destino);
+    caja.appendChild(sRes);
+
     app.appendChild(caja);
     K.piezas.creditos.montar(caja);
 
@@ -395,6 +401,14 @@
         if (n) accRev.insertAdjacentHTML('beforeend', '<b class="acceso__burbuja rv-burbuja" aria-label="' + n + ' por revisar">' + (n > 99 ? '99+' : n) + '</b>');
         else if (p) p.textContent = 'Estás al día: no hay cuentas esperando revisión';
       }, function () { /* sin número: la vista lo vuelve a pedir */ });
+    }
+
+    /* 5.4.1 · el reporte se trae en segundo plano UNA vez por sesión, un
+       rato después de pintar el inicio: al abrir REPORTE ya está en el
+       teléfono. Si falla no pasa nada, la vista lo vuelve a pedir. */
+    if (puede('reporte') && window.REPORTE && !vistaInicio._reporte) {
+      vistaInicio._reporte = true;
+      setTimeout(function () { window.REPORTE.cargar(false)['catch'](function () { vistaInicio._reporte = false; }); }, 3500);
     }
   }
 

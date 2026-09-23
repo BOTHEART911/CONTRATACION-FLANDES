@@ -2396,3 +2396,7 @@
 .of .ct-barra-bus .ins-buscar { flex: 1 1 auto; }
 .rp-fechas label { min-width: 0; }
 .rp-fechas input { width: 100%; min-width: 0; box-sizing: border-box; }
+/* 5.4.1 · El aviso "Cargando datos" salía a la izquierda en PC: el
+   esqueleto entraba como UNA celda de la rejilla de 3 columnas y el aviso
+   se centraba dentro de esa celda. Ahora el esqueleto ocupa la fila entera. */
+.kit-rejilla > .kit-esq, .of-muro > .kit-esq { grid-column: 1 / -1; }
