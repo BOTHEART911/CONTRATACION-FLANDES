@@ -502,9 +502,8 @@
     ]));
     rej.appendChild(grupo('La plata', [
       dato('Valor inicial', plata(c.valorInicial)), dato('1ª adición', plata(c.adicion1)),
-      dato('2ª adición', plata(c.adicion2)), dato('Valor final', plata(c.valorFinal)),
-      dato('Informes del primario', c.totalInformesPrimario), dato('Informes de la 1ª adición', c.totalInformesAdicion1)
-    ]));
+      dato('2ª adición', plata(c.adicion2)), dato('Valor final', plata(c.valorFinal))
+    ].concat(informes(d.informes, c))));
     rej.appendChild(grupo('Respaldos presupuestales', [
       dato('CDP', c.cdp), dato('RP', c.rp), dato('CDP adición', c.cdpAdicion), dato('RP adición', c.rpAdicion),
       dato('CDP 2ª adición', c.cdpAdicion2), dato('RP 2ª adición', c.rpAdicion2)
@@ -570,6 +569,23 @@
     var g = K.nodo('<section class="kit-tarjeta grupo"><h3 class="grupo__t">' + K.esc(titulo) + '</h3></section>');
     vivas.forEach(function (x) { g.appendChild(x); });
     return g;
+  }
+
+  /**
+   * 5.1.2 · LOS INFORMES POR TRAMO. La hoja guarda en TOTAL INFORMES 1RA
+   * ADICION el TOTAL ACUMULADO (8 del primario + 3 de la adición = 11), no
+   * los de la adición. El CORE ya manda cada tramo por separado y el total;
+   * lo que sale del valor y no de la hoja se dice.
+   */
+  function informes(inf, c) {
+    if (!inf) return [dato('Informes del primario', c.totalInformesPrimario)];
+    var calc = function (k) { return (inf.calculado || []).indexOf(k) >= 0 ? ' (según el valor)' : ''; };
+    var r = [dato('Informes del primario', inf.primario || '')];
+    if (inf.adicion1) r.push(dato('Informes de la 1ª adición', inf.adicion1 + calc('adicion1')));
+    if (inf.adicion2) r.push(dato('Informes de la 2ª adición', inf.adicion2 + calc('adicion2')));
+    if (inf.adicion1 || inf.adicion2) r.push(dato('Total de informes', inf.total));
+    if (inf.aviso) r.push(K.nodo('<p class="ct-inf-aviso">' + K.esc(inf.aviso) + '</p>'));
+    return r;
   }
 
   function dato(etiqueta, valor, largo) {

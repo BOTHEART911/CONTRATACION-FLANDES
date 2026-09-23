@@ -10,6 +10,7 @@ Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 - Inicio con el resumen de los contratos (activos, adicionados, cedidos y activos por secretaría).
 - CONTRATISTAS: la lista completa con pastillas de estado, adicionados, cedidos, secretaría y supervisor, buscador y 1, 2 o 3 tarjetas según el ancho.
 - La ficha de cada contrato (contrato, plazo, plata, respaldos, cesión, datos personales, pago, seguridad social, firma y obligaciones).
+- Informes por tramo en la ficha: primario, 1ª adición y total por separado (5.1.2).
 - Botón Refrescar con la hora de la última carga, orden (A→Z, contrato más nuevo, termina primero), barra del plazo y documento que se copia al tocarlo.
 - Soporte en el menú del perfil: se guarda en la hoja SOPORTE (la responde ADMIN) y avisa al grupo de desarrollo.
 - Foto de perfil (la misma en las siete apps), Insights en todas las vistas, PWA instalable y modo oscuro.

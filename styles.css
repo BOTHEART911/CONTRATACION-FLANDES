@@ -1979,3 +1979,6 @@
 .ct-plazo__barra--pronto i { background: linear-gradient(90deg, var(--k-aviso), #f0b44c); }
 .ct-plazo__pie { margin: 0; display: flex; justify-content: space-between; gap: 8px; font: 500 .7rem/1.2 var(--k-fuente); color: var(--k-apagado); }
 .ct-plazo__pronto { font-style: normal; font-weight: 700; color: var(--k-aviso); }
+
+/* 5.1.2 · aviso cuando la hoja y el valor no dan los mismos informes */
+.ct-inf-aviso { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; font-size: .85rem; background: var(--k-aviso-fondo, rgba(217,119,6,.12)); color: var(--k-texto); }
