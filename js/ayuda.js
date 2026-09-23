@@ -186,7 +186,88 @@
     }
   };
 
-  var TITULOS = { inicio: 'Tu inicio', contratistas: 'CONTRATISTAS', contratista: 'Ficha del contratista' };
+  /* ══════════════ 5.2 · agregar, adición, cesión y suspensión ══════════════ */
+  function ULT() { return (window.GESTION && window.GESTION._ultima()) || {}; }
+  function pesos52(v) { return '$ ' + Math.round(Number(v) || 0).toLocaleString('es-CO'); }
+
+  GUIAS.agregar = function () {
+    return {
+      guia: 'Primero **el documento**: la app te dice si es una persona nueva, alguien que ya trabajó con la Alcaldía (se traen sus datos y su contraseña) o alguien con contrato **activo** (solo se deja en otra secretaría). Después llenas el contrato; el valor en letras y el conteo de obligaciones salen solos.',
+      botones: [
+        { texto: '¿Cómo pego las obligaciones?', responde: function () {
+            return 'Cópialas del clausulado **con su numeración** (1. 2. 3. …). La app las separa por el número, no por los saltos de línea, y te muestra cuántas contó antes de guardar. Máximo 26.';
+          } },
+        { texto: '¿Qué valida el CDP?', responde: function () {
+            return 'Que tenga **10 dígitos**, que empiece por el año de la vigencia y que **no esté usado** en ningún otro contrato (ni como CDP inicial ni de adición). Escribes solo el final: el año lo pone la app.';
+          } },
+        { texto: '¿Qué le llega al contratista?', responde: function () {
+            return 'Si es nuevo, su **contraseña** por WhatsApp (se guarda cifrada) y el aviso del contrato. Si ya había trabajado, solo el aviso: conserva la contraseña que tenía.';
+          } }
+      ]
+    };
+  };
+
+  GUIAS.adicion = function () {
+    return {
+      guia: 'La app decide si es la **1ª o la 2ª** adición. La 2ª va en su propia columna y ya no pisa el valor de la 1ª. Los informes del contrato inicial se **congelan** y se guarda el **total acumulado** (como ya lo tenía la hoja).',
+      botones: [
+        { texto: '¿Cuánto se puede adicionar?', responde: function () {
+            var c = ULT().contrato || {}, inf = c.informes || {};
+            if (!c.valorInicial) return 'Hasta el **50 %** del valor inicial, sumando las dos adiciones.';
+            return 'Hasta el **50 %** del valor inicial (' + pesos52(c.valorInicial) + '): el tope total es **' + pesos52(c.valorInicial / 2) + '**' +
+              (c.adicion1 ? ' y ya tiene ' + pesos52(c.adicion1) + ' en la 1ª' : '') + '.';
+          } },
+        { texto: '¿Cuántos informes quedan?', responde: function () {
+            var c = ULT().contrato || {}, inf = c.informes || {};
+            if (!inf.primario) return 'Todavía no hay informes congelados: los pones tú en el formulario.';
+            return 'Primario **' + inf.primario + '**' + (inf.adicion1 ? ' + 1ª adición **' + inf.adicion1 + '**' : '') +
+              (inf.adicion2 ? ' + 2ª **' + inf.adicion2 + '**' : '') + ' = **' + inf.total + '** informes.';
+          } },
+        { texto: '¿Y si me equivoqué?', responde: function () {
+            var c = ULT().contrato || {}, inf = c.informes || {};
+            return 'Usa **Corregir la última adición**: reescribe esa misma adición (no crea otra) y vuelve a avisar al contratista.';
+          } }
+      ]
+    };
+  };
+
+  GUIAS.cesion = function () {
+    return {
+      guia: 'La cesión cambia **quién** ejecuta el contrato, no el contrato: número, CDP, RP, obligaciones y tramo se quedan. Queda escrito quién cedió y desde cuándo empieza el cesionario, para las certificaciones.',
+      botones: [
+        { texto: '¿Qué pasa con las cuentas del cedente?', responde: function () {
+            var c = ULT().contrato || {}, inf = c.informes || {};
+            return 'Se quedan **con su nombre y su documento**. El cesionario sigue la numeración' +
+              (c.ultimaCuenta ? ' desde el informe **' + (c.ultimaCuenta.informe + 1) + '**' : '') + ' y el saldo del contrato.';
+          } },
+        { texto: '¿Y el RP de la cesión?', responde: function () {
+            var c = ULT().contrato || {}, inf = c.informes || {};
+            return 'Lo pone el **cesionario en su cuenta** (campo obligatorio en su app) hasta que Contabilidad lo use en una orden de pago. El RP original del contrato **no se toca**.';
+          } },
+        { texto: '¿Por qué no me deja ceder?', responde: function () {
+            var c = ULT().contrato || {}, inf = c.informes || {};
+            var ab = c.abiertas || [];
+            if (!ab.length) return 'Sí se puede: no tiene cuentas a medio camino.';
+            return 'Tiene ' + ab.map(function (x) { return 'la cuenta ' + x.informe + ' en ' + x.estado; }).join(', ') +
+              '. Hasta que llegue al plan de pagos (**CERRADA**) quedaría entre dos personas.';
+          } }
+      ]
+    };
+  };
+
+  GUIAS.suspension = function () {
+    return {
+      guia: 'Escribe el **tiempo total** que el contrato estuvo suspendido. La fecha final se corre lo mismo y el tiempo de ejecución queda en lo **realmente ejecutado**. Con 0 y 0 se quita.',
+      botones: [
+        { texto: '¿Por qué el total y no lo nuevo?', responde: function () {
+            return 'Porque así no se suma dos veces si alguien guarda lo mismo otra vez: la app compara con lo que ya tenía y mueve la fecha solo la diferencia.';
+          } }
+      ]
+    };
+  };
+
+  var TITULOS = { inicio: 'Tu inicio', contratistas: 'CONTRATISTAS', contratista: 'Ficha del contratista',
+                  agregar: 'Agregar contratista', adicion: 'Adición', cesion: 'Cesión', suspension: 'Suspensión' };
 
   function montar(vista, extra) {
     if (!K.piezas.insights) return;

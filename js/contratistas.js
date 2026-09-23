@@ -26,6 +26,12 @@
      · Ordenar (A→Z, contrato más nuevo, termina primero), barra del plazo
        con aviso de "termina en N días" y documento que se copia al tocarlo.
 
+   5.2
+     · En cada tarjeta ACTIVA, para quien tiene el permiso: Adición,
+       Cesión y Suspensión (cada una abre su vista, en gestion.js). La
+       suspensión se ve también como marca en la tarjeta.
+     · Botón Agregar contratista en la cabecera de la lista.
+
    LA LLAVE es el ID CONTRATO (documento-contrato). EDILBERTO sale tres
    veces, una por contrato, y cada tarjeta abre SU ficha.
    ============================================================ */
@@ -71,6 +77,7 @@
   function pulir(f) {
     f.adic = !!f.adic;
     f.cedido = !!f.cedido;
+    f.susp = f.susp || '';
     f._t = K.norm([f.nombre, f.doc, f.contrato, f.sec, f.sup, f.tel, f.tipo].join(' '));
     return f;
   }
@@ -195,6 +202,11 @@
       '  <p class="ct-cab__p">Toca una tarjeta para ver el contrato y los datos. Los filtros no gastan datos: todo pasa en tu teléfono.</p></div>' +
       '</header>'
     ));
+    if (C.puede && C.puede('agregarContratista')) {
+      var bAg = K.nodo('<button type="button" class="kit-btn kit-btn--marca ct-agregar">' + K.icono('mas', 16) + ' Agregar contratista</button>');
+      bAg.addEventListener('click', function () { K.vibrar(8); C.irA('agregar'); });
+      caja.firstChild.appendChild(bAg);
+    }
 
     var barra = K.nodo('<div class="ct-barra-bus"></div>');
     var buscar = K.nodo(
@@ -399,6 +411,7 @@
     if (f.tramo) marcas.push('<span class="ct-marca">' + K.esc(f.tramo) + '</span>');
     if (f.adic) marcas.push('<span class="ct-marca ct-marca--adic">ADICIONADO</span>');
     if (f.cedido) marcas.push('<span class="ct-marca ct-marca--ced">CEDIDO</span>');
+    if (f.susp) marcas.push('<span class="ct-marca ct-marca--susp">' + K.icono('pausa', 11) + ' SUSPENDIDO ' + K.esc(f.susp) + '</span>');
     t.appendChild(K.nodo(
       '<dl class="ct-t__datos">' +
       '  <div><dt>Contrato</dt><dd>' + K.esc(f.contrato || '—') + (f.fecha ? ' <small>de ' + K.esc(f.fecha) + '</small>' : '') + '</dd></div>' +
@@ -414,7 +427,31 @@
     if (marcas.length) t.appendChild(K.nodo('<div class="ct-t__marcas">' + marcas.join('') + '</div>'));
 
     t.appendChild(acciones(f, false));
+    var g = gestion(f);
+    if (g) t.appendChild(g);
     return t;
+  }
+
+  /**
+   * 5.2 · Adición, Cesión y Suspensión. Solo en contratos ACTIVOS y solo
+   * para quien tiene el permiso (CREADOR). Van aparte de Detalles /
+   * WhatsApp / Drive porque cambian el contrato: no se tocan sin querer.
+   */
+  function gestion(f) {
+    if (f.estado !== 'ACTIVO' || !C.puede) return null;
+    var items = [
+      ['adicion', 'mas', 'Adición'],
+      ['cesion', 'persona', 'Cesión'],
+      ['suspension', 'pausa', f.susp ? 'Suspensión ✓' : 'Suspensión']
+    ].filter(function (x) { return C.puede(x[0]); });
+    if (!items.length) return null;
+    var a = K.nodo('<div class="ct-gest" role="group" aria-label="Gestionar el contrato"></div>');
+    items.forEach(function (x) {
+      var b = K.nodo('<button type="button" class="ct-gest__b">' + K.icono(x[1], 15) + ' ' + K.esc(x[2]) + '</button>');
+      b.addEventListener('click', function () { K.vibrar(8); C.irA(x[0] + '/' + encodeURIComponent(f.id)); });
+      a.appendChild(b);
+    });
+    return a;
   }
 
   /** Detalles · WhatsApp · Drive. Las mismas en tarjeta y ficha.
@@ -472,6 +509,7 @@
     if (f.tramo) marcas += '<span class="ct-marca">' + K.esc(f.tramo) + '</span>';
     if (f.adic) marcas += '<span class="ct-marca ct-marca--adic">ADICIONADO</span>';
     if (f.cedido) marcas += '<span class="ct-marca ct-marca--ced">CEDIDO</span>';
+    if (f.susp) marcas += '<span class="ct-marca ct-marca--susp">' + K.icono('pausa', 11) + ' SUSPENDIDO ' + K.esc(f.susp) + '</span>';
     cab.appendChild(K.nodo(
       '<div class="ct-ficha__quien">' +
       '  <h2>' + K.esc(nombre(f.nombre)) + '</h2>' +
@@ -480,6 +518,8 @@
       '</div>'
     ));
     cab.appendChild(acciones(f, true));
+    var gF = gestion(f);
+    if (gF) cab.appendChild(gF);
     caja.appendChild(cab);
 
     if (c.supervisor && K.piezas.personas) {
@@ -498,7 +538,8 @@
       dato('Costos o deducciones', c.costos)
     ]));
     rej.appendChild(grupo('El plazo', [
-      dato('Fecha de inicio', c.fechaInicio), dato('Fecha de terminación', c.fechaTermino), dato('Tiempo de ejecución', c.ejecucion)
+      dato('Fecha de inicio', c.fechaInicio), dato('Fecha de terminación', c.fechaTermino), dato('Tiempo de ejecución', c.ejecucion),
+      dato('Suspendido', f.susp)
     ]));
     rej.appendChild(grupo('La plata', [
       dato('Valor inicial', plata(c.valorInicial)), dato('1ª adición', plata(c.adicion1)),

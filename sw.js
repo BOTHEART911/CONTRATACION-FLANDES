@@ -40,6 +40,7 @@ var ARMAZON = [
   './js/app.js',
   './js/contratistas.js',
   './js/ayuda.js',
+  './js/gestion.js',
   './img/icono-32.png',
   './img/icono-180.png',
   './img/icono-192.png',
@@ -70,7 +71,8 @@ var ARMAZON = [
   /* 5.1.1 · soporte */
   './kit/adjuntos.js', './kit/adjuntos.css',
   './kit/imagenes.js',
-  './kit/soporte.js', './kit/soporte.css'
+  './kit/soporte.js', './kit/soporte.css',
+  './kit/fechas.js', './kit/fechas.css'
 ];
 
 self.addEventListener('install', function (e) {

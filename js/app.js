@@ -1,6 +1,6 @@
 /* ============================================================
    CONTRATACION-FLANDES · APP
-   Ecosistema Flandes · Fase 5, entrega 5.1
+   Ecosistema Flandes · Fase 5, entregas 5.1 y 5.2
 
    Lo que entra en esta entrega
      · La entrada con documento y contraseña (roles CREADOR y REVISOR;
@@ -9,9 +9,10 @@
        cielo, tu foto, un resumen vivo de los contratos y los accesos
        por bloques.
      · La vista CONTRATISTAS (vive en contratistas.js).
+     · 5.2: agregar contratista, adición, cesión y suspensión (gestion.js),
+       cada una con su ruta y su permiso (CREADOR; el REVISOR solo mira).
 
    Lo que NO entra todavía
-     5.2 agregar contratista, adición, cesión y suspensión ·
      5.3 revisar cuentas · 5.4 requerimientos, comunicados y reporte.
      (Soporte entró en la 5.1.1, en el menú del perfil.) Sus tarjetas no se pintan hasta que existan: una tarjeta
      que no hace nada es peor que no tenerla.
@@ -99,6 +100,10 @@
       window.AYUDA.configurar(function () {
         return { yo: YO, arranque: ARRANQUE, lista: window.CONTRATISTAS ? window.CONTRATISTAS.todas() : [] };
       });
+    }
+
+    if (window.GESTION) {
+      window.GESTION.configurar({ app: app, puede: puede, irA: irA, errorCaja: errorCaja });
     }
 
     if (window.CONTRATISTAS) {
@@ -189,13 +194,29 @@
   var VISTAS = {
     inicio: vistaInicio,
     contratistas: function (sub) { window.CONTRATISTAS.lista(sub); },
-    contratista: function (sub) { window.CONTRATISTAS.detalle(sub); }
+    contratista: function (sub) { window.CONTRATISTAS.detalle(sub); },
+    /* 5.2 */
+    agregar: function () { window.GESTION.agregar(); },
+    adicion: function (sub) { window.GESTION.adicion(sub); },
+    cesion: function (sub) { window.GESTION.cesion(sub); },
+    suspension: function (sub) { window.GESTION.suspension(sub); }
   };
 
   var titulos = {
     inicio: 'Contratación',
     contratistas: 'CONTRATISTAS',
-    contratista: 'DETALLES DEL CONTRATISTA'
+    contratista: 'DETALLES DEL CONTRATISTA',
+    agregar: 'AGREGAR CONTRATISTA',
+    adicion: 'ADICIÓN',
+    cesion: 'CESIÓN',
+    suspension: 'SUSPENSIÓN'
+  };
+
+  /* El permiso de cada vista (llave PERMISOS de CONFIG). El CORE lo vuelve
+     a exigir en cada llamada: esto solo evita pintar lo que no se puede. */
+  var PERMISO = {
+    contratistas: 'contratistas', contratista: 'contratistas',
+    agregar: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension'
   };
 
   function irA(v) { location.hash = '#/' + v; }
@@ -210,19 +231,22 @@
     var partes = String(location.hash || '').replace(/^#\/?/, '').split('/');
     var v = partes[0] || 'inicio';
     if (!VISTAS[v]) v = 'inicio';
-    /* la lista y la ficha también son "contratistas" para el permiso */
-    if (v !== 'inicio' && !puede('contratistas')) v = 'inicio';
+    if (v !== 'inicio' && !puede(PERMISO[v] || v)) v = 'inicio';
 
     K.piezas.banner.vista(titulos[v]);
-    /* la ficha vuelve a la lista (con sus filtros), la lista al inicio */
+    /* la ficha vuelve a la lista (con sus filtros), la lista al inicio y
+       adición/cesión/suspensión a la ficha de la que salieron */
+    var resto = partes.slice(1).join('/');
     K.piezas.banner.atras(v === 'inicio' ? null : function () {
-      irA(v === 'contratista' ? 'contratistas' : 'inicio');
+      if (v === 'adicion' || v === 'cesion' || v === 'suspension') irA('contratista/' + resto);
+      else if (v === 'contratista' || v === 'agregar') irA('contratistas');
+      else irA('inicio');
     });
 
     app.innerHTML = '';
     if (window.AYUDA) window.AYUDA.montar(v);
     window.scrollTo(0, 0);
-    VISTAS[v](partes.slice(1).join('/'));
+    VISTAS[v](resto);
   }
 
   /* ---------- inicio ---------- */
@@ -261,7 +285,10 @@
       bloque('CONTRATOS', [
         acceso('CONTRATISTAS', 'Todos los contratos: busca, filtra por secretaría o supervisor y abre la ficha',
           'img/contratista.webp', function () { irA('contratistas'); })
-      ]);
+      ].concat(puede('agregarContratista') ? [
+        acceso('AGREGAR CONTRATISTA', 'Registra un contrato: primero se valida el documento, después lo demás',
+          'img/contratista_2.webp', function () { irA('agregar'); })
+      ] : []));
     }
 
     app.appendChild(caja);
@@ -288,6 +315,15 @@
 
     destino.innerHTML = '';
     var caja = K.nodo('<div class="kit-tarjeta resumen__caja ct-resumen"></div>');
+    /* 5.2 · Refrescar también aquí: las cifras salen de la misma lista */
+    var ref = K.nodo('<button type="button" class="kit-btn kit-btn--plano ct-recargar ct-recargar--mini" aria-label="Refrescar las cifras">' +
+      K.icono('recargar', 16) + '<span>Refrescar</span></button>');
+    ref.addEventListener('click', function () {
+      ref.disabled = true; ref.classList.add('kit-ocupado');
+      window.CONTRATISTAS.cargar(true).then(function () { pintarResumen(destino); K.aviso('Cifras al día.', 'ok', 2000); },
+        function (e) { K.aviso((e && e.message) || 'No se pudo refrescar.', 'malo', 5000); ref.disabled = false; ref.classList.remove('kit-ocupado'); });
+    });
+    caja.appendChild(ref);
     var cifras = K.nodo('<div class="ct-cifras"></div>');
     [
       [act.length, 'Activos', 'activos'],
