@@ -42,6 +42,12 @@ var ARMAZON = [
   './js/ayuda.js',
   './js/gestion.js',
   './js/revision.js',
+  /* 5.4 */
+  './js/docs-revision.js',
+  './js/oficina.js',
+  './js/requerimientos.js',
+  './js/comunicados.js',
+  './js/reporte.js',
   './img/icono-32.png',
   './img/icono-180.png',
   './img/icono-192.png',
@@ -75,7 +81,9 @@ var ARMAZON = [
   './kit/soporte.js', './kit/soporte.css',
   './kit/fechas.js', './kit/fechas.css',
   /* 5.3 · revisión de cuentas */
-  './kit/carrusel.js', './kit/carrusel.css'
+  './kit/carrusel.js', './kit/carrusel.css',
+  /* 5.4 · reporte en PDF y Excel */
+  './kit/exportar.js', './kit/exportar.css'
 ];
 
 self.addEventListener('install', function (e) {

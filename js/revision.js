@@ -1,6 +1,7 @@
 /* ============================================================
    CONTRATACION-FLANDES · REVISAR CUENTAS
-   Ecosistema Flandes · Fase 5, entrega 5.3
+   Ecosistema Flandes · Fase 5, entrega 5.3 (5.4: documentos rápidos,
+   ver js/docs-revision.js)
 
    Qué hay aquí
      · La LISTA de cuentas por revisar: las que el supervisor ya revisó
@@ -140,6 +141,7 @@
   }
 
   function lista() {
+    if (window.DOCS_REV) window.DOCS_REV.olvidar();   /* 5.4: suelta los documentos de la cuenta anterior */
     var caja = K.nodo('<div class="kit-ancho vista ct rv"></div>');
     C.app.appendChild(caja);
     cabecera(caja, 'documento', 'REVISAR CUENTAS',
@@ -317,15 +319,24 @@
     if (!q.fila || !q.id) { caja.appendChild(C.errorCaja(new Error('Falta la cuenta.'), function () { C.irA('revisar'); })); return; }
 
     var p = leer('cuentaRevision', q);
-    /* la carpeta se pide a la vez: tarda más (Drive) y no frena lo demás */
-    CARPETA_P = leer('revisionDocs', q).then(function (r) {
-      CARPETA = r || { carpeta: false, grupos: [] };
-      if (D) repintarDocs();
+    /* 5.4 · pdf.js y su trabajador se bajan ya, no con el primer documento */
+    if (K.piezas.visor && K.piezas.visor.precalentar) K.piezas.visor.precalentar();
+    /* la carpeta se pide a la vez: tarda más (Drive) y no frena lo demás.
+       5.4: revisionArchivos trae además el boleto de cada archivo para bajar
+       los documentos en segundo plano. Si el CORE todavía no la tiene, se usa
+       la de la 5.3 y el visor pide cada documento al tocarlo, como antes. */
+    if (window.DOCS_REV) window.DOCS_REV.olvidar();
+    CARPETA_P = leer('revisionArchivos', q).then(function (r) {
+      if (window.DOCS_REV) window.DOCS_REV.recibir(q, r);
+      return r;
+    }, function () { return leer('revisionDocs', q); }).then(function (r) {
+      CARPETA = { carpeta: !!(r && r.carpeta), grupos: (r && r.grupos) || [] };
+      if (D) { repintarDocs(); precargar(); }
       return CARPETA;
     }, function () { CARPETA = { carpeta: false, grupos: [], error: true }; if (D) repintarDocs(); return CARPETA; });
 
     K.piezas.esqueletos.mientras(caja, p, { forma: 'texto', cuantos: 8 })
-      .then(function (d) { D = d; iniciarBitacora(); pintar(caja); })
+      .then(function (d) { D = d; iniciarBitacora(); pintar(caja); if (CARPETA) precargar(); })
       ['catch'](function (e) { caja.appendChild(C.errorCaja(e, function () { C.app.innerHTML = ''; detalle(sub); })); });
   }
 
@@ -616,12 +627,34 @@
 
   function docsDe(k) { return todosLosDocs().filter(function (d) { return d.seccion === k; }); }
 
+  /* 5.4 · Bajar en segundo plano todo lo de la cuenta, empezando por la
+     pestaña donde está la persona y siguiendo el orden de las pestañas. */
+  function precargar() {
+    if (!window.DOCS_REV || !D || !CARPETA) return;
+    var orden = [B && B.posicion ? B.posicion.seccion : 'contrato'].concat(SEC.map(function (x) { return x.k; }));
+    var ids = [], visto = {};
+    orden.forEach(function (k) {
+      if (visto[k]) return;
+      visto[k] = true;
+      docsDe(k).forEach(function (d) { ids.push(d.id); });
+    });
+    window.DOCS_REV.precargar(ids);
+  }
+
   function abrirVisor(lista, i) {
     if (!K.piezas.visor) return;
     var cu = D.cuenta;
-    K.piezas.visor.abrir(lista.map(function (d) {
-      var x = { titulo: d.titulo, cargar: function () {
+    var R = window.DOCS_REV;
+    var ids = lista.map(function (d) { return d.id; });
+    K.piezas.visor.abrir(lista.map(function (d, j) {
+      var viejo = function () {
         return leer('revisionDocumento', { fila: cu.fila, id: cu.idContrato, informe: cu.informe, archivo: d.id });
+      };
+      var x = { titulo: d.titulo, cargar: function () {
+        /* los vecinos pasan al frente: pasar al siguiente se siente inmediato */
+        if (R) R.adelantar([ids[j + 1], ids[j - 1]].filter(Boolean));
+        var rapido = R ? R.pedir(d.id) : null;
+        return rapido ? rapido['catch'](viejo) : viejo();
       } };
       if (d.tipo) x.tipo = d.tipo;
       return x;
@@ -1368,7 +1401,7 @@
   window.REVISION = {
     configurar: function (o) { C = o || {}; },
     recibir: recibir, cargar: cargar, lista: lista, detalle: detalle,
-    olvidar: function () { LISTA = null; D = null; B = null; K.guardar.borrar(FILTRO_K); F = leerFiltro(); },
+    olvidar: function () { LISTA = null; D = null; B = null; K.guardar.borrar(FILTRO_K); F = leerFiltro(); if (window.DOCS_REV) window.DOCS_REV.olvidar(); },
     pendientes: function () { return LISTA ? LISTA.cuentas.length : null; },
     salir: salir,
     /* para Insights */

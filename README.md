@@ -4,7 +4,7 @@ App de **Contratación** de la **Alcaldía de Flandes**. Ecosistema Flandes, Fas
 
 Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 
-## Qué hay aquí (hasta la entrega 5.3)
+## Qué hay aquí (hasta la entrega 5.4)
 
 - Entrada por el FLANDES-CORE con documento y contraseña (roles CREADOR y REVISOR; el DEV entra a todo).
 - Inicio con el resumen de los contratos (activos, adicionados, cedidos y activos por secretaría).
@@ -15,6 +15,10 @@ Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 - Soporte en el menú del perfil: se guarda en la hoja SOPORTE (la responde ADMIN) y avisa al grupo de desarrollo.
 - Agregar contratista, adición, cesión y suspensión (5.2).
 - REVISAR CUENTAS (5.3): la lista de lo que el supervisor ya revisó (pastillas sin abrir / en revisión / vuelven corregidas, secretaría, buscador, Refrescar), el detalle en pestañas (Contrato, Pago, Planilla, Actividades, Bitácora) con el visor multidocumento y el carrusel con zoom de las evidencias, la bitácora de notas internas que se guarda sin decidir y se retoma, y la decisión (aprobar o devolver) que sale a nombre del supervisor.
+- 5.4 · Los documentos de la revisión se bajan en segundo plano apenas se abre la cuenta (paquetes firmados, `js/docs-revision.js`): abrir uno o pasar al siguiente es inmediato y el revisor sigue sin necesitar permisos de Drive.
+- REQUERIMIENTOS (5.4): pedirle algo a uno o a varios contratistas (máximo 20); queda guardado, llega por notificación y WhatsApp y se marca atendido. Pastillas, buscador y Refrescar.
+- COMUNICADOS (5.4): publicar con documentos (Office se ve como PDF en el visor), aviso a los teléfonos, retirar y volver a publicar.
+- REPORTE (5.4): cuentas aprobadas y devueltas por rango, con quién revisó de verdad (nunca el supervisor); PDF membretado y Excel.
 - Foto de perfil (la misma en las siete apps), Insights en todas las vistas, PWA instalable y modo oscuro.
 
 ## Estructura
@@ -41,6 +45,7 @@ img/                        iconos propios de la PWA
 
 `kit/` es una **copia** de [KIT-FLANDES](https://github.com/BOTHEART911/KIT-FLANDES).
 No se edita aquí: se arregla allá y se vuelve a copiar, o las siete apps se separan.
+Pendiente de llevar a KIT-FLANDES (5.4): `kit/visor.js` (bytes directos, un solo trabajador de pdf.js, `precalentar`) y `kit/exportar.js` (`subtitulo` y anchos medidos en mm).
 
 ---
 

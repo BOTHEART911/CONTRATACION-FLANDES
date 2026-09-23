@@ -1,6 +1,6 @@
 /* ============================================================
    CONTRATACION-FLANDES · AYUDA POR VISTA (Insights)
-   Ecosistema Flandes · Fase 5, entrega 5.1
+   Ecosistema Flandes · Fase 5, entrega 5.1 (5.4: requerimientos, comunicados y reporte)
 
    El mismo patrón de CONTRATISTA-FLANDES (4.9): cada vista tiene una
    GUÍA que habla de lo que hay en pantalla y PREGUNTAS RÁPIDAS con la
@@ -349,9 +349,95 @@
     };
   };
 
+  /* ══════════════ 5.4 · oficina ══════════════ */
+
+  function RQ() { return window.REQS || null; }
+  function CM() { return window.COMUS || null; }
+  function RP() { return window.REPORTE || null; }
+
+  GUIAS.requerimientos = function () {
+    return {
+      guia: 'En **Contratistas** eliges a quién pedirle algo: toca **Redactar** o marca varios y redacta una sola vez (máximo 20). ' +
+            'Le llega como notificación y por WhatsApp, y queda en su buzón. En **Historial** ves todo lo pedido; márcalo **atendido** cuando lo resuelva.',
+      botones: [
+        { texto: '¿Cuántos siguen abiertos?', responde: function () {
+            var d = RQ() && RQ()._datos(); if (!d) return 'Todavía está cargando.';
+            var ab = d.lista.filter(function (r) { return r.estado !== 'ATENDIDO'; });
+            if (!d.lista.length) return 'Todavía no se ha hecho ningún requerimiento desde la app nueva.';
+            if (!ab.length) return 'Ninguno: los ' + d.lista.length + ' requerimientos están atendidos. ✓';
+            return '**' + ab.length + '** abiertos de ' + d.lista.length + '. El más viejo es del **' + ab[ab.length - 1].fecha.split('-').reverse().join('/') + '** (' + nombre(ab[ab.length - 1].nombre) + ').';
+          } },
+        { texto: '¿Quién tiene más pendientes?', responde: function () {
+            var d = RQ() && RQ()._datos(); if (!d) return 'Todavía está cargando.';
+            var ab = d.lista.filter(function (r) { return r.estado !== 'ATENDIDO'; });
+            if (!ab.length) return 'Nadie tiene requerimientos abiertos.';
+            return listaCorta(top(ab, 'nombre', 99), function (x) { return '· **' + nombre(x.k) + '**: ' + x.n; }, 6);
+          } },
+        { texto: '¿A quién no le llegó el aviso?', responde: function () {
+            var d = RQ() && RQ()._datos(); if (!d) return 'Todavía está cargando.';
+            var m = d.lista.filter(function (r) { return /falló|SIN/.test(r.aviso || ''); });
+            if (!m.length) return 'A todos les salió el aviso por algún canal. ✓';
+            return listaCorta(m, function (r) { return '· **' + nombre(r.nombre) + '** (' + r.id + '): ' + r.aviso; }, 6) +
+              '\nRevisa su teléfono en DATOS PERSONALES del contratista.';
+          } }
+      ]
+    };
+  };
+
+  GUIAS.comunicados = function () {
+    return {
+      guia: 'Toca **Nuevo comunicado**: escribe, adjunta documentos (PDF, fotos, Word, Excel…) y publica. Llega como notificación a los teléfonos de los contratistas. ' +
+            'Si te equivocaste, **Retirar** lo quita de su app sin borrarlo. Los documentos se abren en el visor.',
+      botones: [
+        { texto: '¿Cuántos teléfonos lo reciben?', responde: function () {
+            var d = CM() && CM()._datos(); if (!d) return 'Todavía está cargando.';
+            if (d.telefonos === null || d.telefonos === undefined) return 'No pude contar los teléfonos ahora.';
+            return '**' + d.telefonos + '** teléfonos de contratistas tienen los avisos activados. Los demás lo ven cuando abren la app.';
+          } },
+        { texto: '¿Qué he publicado yo?', responde: function () {
+            var d = CM() && CM()._datos(); if (!d) return 'Todavía está cargando.';
+            var m = d.lista.filter(function (c) { return c.mio; });
+            if (!m.length) return 'Todavía no has publicado comunicados desde la app nueva.';
+            return listaCorta(m, function (c) { return '· ' + (c.fecha ? c.fecha.split('-').reverse().join('/') + ' · ' : '') + (c.estado === 'RETIRADO' ? '(retirado) ' : '') + '«' + String(c.texto || '').slice(0, 60) + '»'; }, 6);
+          } }
+      ]
+    };
+  };
+
+  GUIAS.reporte = function () {
+    return {
+      guia: 'Elige el **rango** (o toca un atajo), filtra por **estado**, **quién revisó** o **secretaría**, y descarga en **PDF** o **Excel**. ' +
+            'Quién revisó sale de lo que se registra al decidir; en las cuentas viejas, del registro histórico de Contratación, **nunca del supervisor**.',
+      botones: [
+        { texto: 'Resúmeme el rango', responde: function () {
+            var r = RP(); var f = r ? r._filtradas() : []; if (!r || !r._datos()) return 'Todavía está cargando.';
+            if (!f.length) return 'No hay cuentas decididas en ' + r._rango().toLowerCase() + '.';
+            var a = f.filter(function (x) { return x.estado === 'A'; }).length;
+            return '**' + r._rango() + '**: ' + f.length + ' cuentas, **' + a + '** aprobadas y **' + (f.length - a) + '** devueltas (' + Math.round((f.length - a) * 100 / f.length) + '% se devuelve).';
+          } },
+        { texto: '¿Por qué se devuelve más?', responde: function () {
+            var r = RP(); var f = r ? r._filtradas().filter(function (x) { return x.estado === 'D' && x.motivo; }) : [];
+            if (!f.length) return 'No hay devoluciones con motivo en este rango.';
+            var temas = { 'Planilla / seguridad social': /planilla|pila|seguridad social|eps|arl|pension/i, 'Saldos y valores': /saldo|valor|cobro|\$/i,
+                          'Firmas': /firma/i, 'RUT': /\brut\b/i, 'Evidencias / informe': /evidencia|informe|actividad|anexo/i, 'Fechas / periodo': /fecha|periodo|mes/i };
+            var c = {};
+            f.forEach(function (x) { Object.keys(temas).forEach(function (t) { if (temas[t].test(x.motivo)) c[t] = (c[t] || 0) + 1; }); });
+            var ks = Object.keys(c).sort(function (a, b) { return c[b] - c[a]; });
+            if (!ks.length) return 'Los motivos no caen en un tema común. Mira la lista de devueltas.';
+            return ks.map(function (k) { return '· **' + k + '**: ' + c[k]; }).join('\n') + '\n(de ' + f.length + ' devoluciones con motivo; una puede contar en varios temas)';
+          } },
+        { texto: '¿Quién revisó más?', responde: function () {
+            var r = RP(); var f = r ? r._filtradas() : []; if (!f.length) return 'No hay cuentas en este rango.';
+            return listaCorta(top(f.map(function (x) { return { k: x.revisor || 'Sin registro' }; }), 'k', 99), function (x) { return '· **' + nombre(x.k) + '**: ' + x.n; }, 6);
+          } }
+      ]
+    };
+  };
+
   var TITULOS = { inicio: 'Tu inicio', contratistas: 'CONTRATISTAS', contratista: 'Ficha del contratista',
                   agregar: 'Agregar contratista', adicion: 'Adición', cesion: 'Cesión', suspension: 'Suspensión',
-                  revisar: 'Revisar cuentas', cuenta: 'Revisión de cuenta' };
+                  revisar: 'Revisar cuentas', cuenta: 'Revisión de cuenta',
+                  requerimientos: 'Requerimientos', comunicados: 'Comunicados', reporte: 'Reporte de Contratación' };
 
   function montar(vista, extra) {
     if (!K.piezas.insights) return;

@@ -1,6 +1,6 @@
 /* ============================================================
    CONTRATACION-FLANDES · APP
-   Ecosistema Flandes · Fase 5, entregas 5.1 a 5.3
+   Ecosistema Flandes · Fase 5, entregas 5.1 a 5.4
 
    Lo que entra en esta entrega
      · La entrada con documento y contraseña (roles CREADOR y REVISOR;
@@ -17,10 +17,11 @@
        carrusel del kit, la bitácora que se guarda sin decidir y la
        decisión (aprobar o devolver) a nombre del supervisor.
 
-   Lo que NO entra todavía
-     5.4 requerimientos, comunicados y reporte.
-     (Soporte entró en la 5.1.1, en el menú del perfil.) Sus tarjetas no se pintan hasta que existan: una tarjeta
-     que no hace nada es peor que no tenerla.
+     · 5.4: REQUERIMIENTOS (requerimientos.js), COMUNICADOS
+       (comunicados.js) y REPORTE DE CONTRATACIÓN (reporte.js), con las
+       piezas comunes en oficina.js. Y la revisión abre los documentos
+       mucho más rápido (docs-revision.js).
+     (Soporte entró en la 5.1.1, en el menú del perfil.)
 
    Reglas que se respetan aquí (las mismas de Contratista)
      · Todo dato de la hoja pasa por K.esc antes de entrar al HTML.
@@ -122,7 +123,8 @@
 
     if (window.AYUDA) {
       window.AYUDA.configurar(function () {
-        return { yo: YO, arranque: ARRANQUE, lista: window.CONTRATISTAS ? window.CONTRATISTAS.todas() : [], revision: window.REVISION || null };
+        return { yo: YO, arranque: ARRANQUE, lista: window.CONTRATISTAS ? window.CONTRATISTAS.todas() : [], revision: window.REVISION || null,
+                 reqs: window.REQS || null, comus: window.COMUS || null, reporte: window.REPORTE || null };
       });
     }
 
@@ -137,6 +139,13 @@
         alCambiar: function (n) { if (ARRANQUE) ARRANQUE.porRevisar = n; }
       });
     }
+
+    /* 5.4 · las tres vistas de oficina */
+    var cOf = { app: app, puede: puede, irA: irA, errorCaja: errorCaja,
+                esDev: function () { return K.norm((YO && YO.rol) || '') === 'DEV'; } };
+    if (window.REQS) window.REQS.configurar(cOf);
+    if (window.COMUS) window.COMUS.configurar(cOf);
+    if (window.REPORTE) window.REPORTE.configurar(cOf);
 
     if (window.CONTRATISTAS) {
       window.CONTRATISTAS.configurar({
@@ -218,6 +227,9 @@
     if (K.piezas.insights) K.piezas.insights.quitar();
     if (window.CONTRATISTAS) window.CONTRATISTAS.olvidar();
     if (window.REVISION) window.REVISION.olvidar();
+    if (window.REQS) window.REQS.olvidar();
+    if (window.COMUS) window.COMUS.olvidar();
+    if (window.REPORTE) window.REPORTE.olvidar();
     K.piezas.sesion.salir();
     location.hash = '';
   }
@@ -235,7 +247,11 @@
     suspension: function (sub) { window.GESTION.suspension(sub); },
     /* 5.3 */
     revisar: function () { window.REVISION.lista(); },
-    cuenta: function (sub) { window.REVISION.detalle(sub); }
+    cuenta: function (sub) { window.REVISION.detalle(sub); },
+    /* 5.4 */
+    requerimientos: function () { window.REQS.vista(); },
+    comunicados: function () { window.COMUS.vista(); },
+    reporte: function () { window.REPORTE.vista(); }
   };
 
   var titulos = {
@@ -247,7 +263,10 @@
     cesion: 'CESIÓN',
     suspension: 'SUSPENSIÓN',
     revisar: 'REVISAR CUENTAS',
-    cuenta: 'REVISIÓN DE CUENTA'
+    cuenta: 'REVISIÓN DE CUENTA',
+    requerimientos: 'REQUERIMIENTOS',
+    comunicados: 'COMUNICADOS',
+    reporte: 'REPORTE'
   };
 
   /* El permiso de cada vista (llave PERMISOS de CONFIG). El CORE lo vuelve
@@ -255,7 +274,8 @@
   var PERMISO = {
     contratistas: 'contratistas', contratista: 'contratistas',
     agregar: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension',
-    revisar: 'revisarCuentas', cuenta: 'revisarCuentas'
+    revisar: 'revisarCuentas', cuenta: 'revisarCuentas',
+    requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte'
   };
 
   function irA(v) { location.hash = '#/' + v; }
@@ -339,6 +359,22 @@
         'img/procesos_de_cuenta.webp', function () { irA('revisar'); });
       bloque('CUENTAS', [accRev]);
     }
+
+    /* 5.4 · la oficina: pedir, informar y rendir cuentas */
+    var oficina = [];
+    if (puede('requerimientos')) {
+      oficina.push(acceso('REQUERIMIENTOS', 'Pídele algo a uno o a varios contratistas y sigue si ya lo atendieron',
+        'img/tramites_y_solicitudes.webp', function () { irA('requerimientos'); }));
+    }
+    if (puede('comunicados')) {
+      oficina.push(acceso('COMUNICADOS', 'Publica avisos con documentos: llegan como notificación al teléfono de los contratistas',
+        'img/chat.webp', function () { irA('comunicados'); }));
+    }
+    if (puede('reporte')) {
+      oficina.push(acceso('REPORTE', 'Cuentas aprobadas y devueltas por fechas y por quién las revisó, en PDF o Excel',
+        'img/pdf.webp', function () { irA('reporte'); }));
+    }
+    if (oficina.length) bloque('OFICINA', oficina);
 
     app.appendChild(caja);
     K.piezas.creditos.montar(caja);
