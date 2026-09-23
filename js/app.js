@@ -12,8 +12,8 @@
 
    Lo que NO entra todavía
      5.2 agregar contratista, adición, cesión y suspensión ·
-     5.3 revisar cuentas · 5.4 requerimientos, comunicados, reporte y
-     soporte. Sus tarjetas no se pintan hasta que existan: una tarjeta
+     5.3 revisar cuentas · 5.4 requerimientos, comunicados y reporte.
+     (Soporte entró en la 5.1.1, en el menú del perfil.) Sus tarjetas no se pintan hasta que existan: una tarjeta
      que no hace nada es peor que no tenerla.
 
    Reglas que se respetan aquí (las mismas de Contratista)
@@ -159,6 +159,9 @@
         { texto: 'Foto de perfil', al: abrirFoto },
         { texto: 'Actualizar contraseña', al: function () { K.piezas.sesion.cambiarClave(); } },
         { texto: 'Instalar la app', al: function () { K.piezas.instalar.abrir(); } },
+        /* 5.1.1 · soporte en TODAS las apps: se guarda en la hoja SOPORTE
+           (la responde ADMIN) y avisa al grupo de desarrollo por WhatsApp */
+        { texto: 'Soporte', al: function () { if (K.piezas.soporte) K.piezas.soporte.abrir({ vista: vistaActual() }); } },
         { texto: 'Cerrar sesión', al: salir, peligro: true }
       ]
     });
@@ -196,6 +199,12 @@
   };
 
   function irA(v) { location.hash = '#/' + v; }
+
+  /** El nombre de la vista donde está la persona: va en la solicitud de soporte. */
+  function vistaActual() {
+    var v = String(location.hash || '').replace(/^#\/?/, '').split('/')[0] || 'inicio';
+    return titulos[v] || v;
+  }
 
   function enrutar() {
     var partes = String(location.hash || '').replace(/^#\/?/, '').split('/');

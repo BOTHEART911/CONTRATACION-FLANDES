@@ -4,13 +4,14 @@ App de **Contratación** de la **Alcaldía de Flandes**. Ecosistema Flandes, Fas
 
 Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 
-## Qué hay aquí (hasta la entrega 5.1)
+## Qué hay aquí (hasta la entrega 5.1.1)
 
 - Entrada por el FLANDES-CORE con documento y contraseña (roles CREADOR y REVISOR; el DEV entra a todo).
 - Inicio con el resumen de los contratos (activos, adicionados, cedidos y activos por secretaría).
 - CONTRATISTAS: la lista completa con pastillas de estado, adicionados, cedidos, secretaría y supervisor, buscador y 1, 2 o 3 tarjetas según el ancho.
 - La ficha de cada contrato (contrato, plazo, plata, respaldos, cesión, datos personales, pago, seguridad social, firma y obligaciones).
-- Activar o inactivar un contrato (CREADOR y DEV).
+- Botón Refrescar con la hora de la última carga, orden (A→Z, contrato más nuevo, termina primero), barra del plazo y documento que se copia al tocarlo.
+- Soporte en el menú del perfil: se guarda en la hoja SOPORTE (la responde ADMIN) y avisa al grupo de desarrollo.
 - Foto de perfil (la misma en las siete apps), Insights en todas las vistas, PWA instalable y modo oscuro.
 
 ## Estructura

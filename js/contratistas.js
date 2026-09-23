@@ -20,6 +20,12 @@
      Los filtros se recuerdan en este teléfono: al volver de una ficha,
      la lista está donde la dejaste.
 
+   5.1.1 (correcciones de Oss)
+     · Sin activar/inactivar: lo hace solo otro script.
+     · Botón REFRESCAR a la vista, con la hora de la última carga.
+     · Ordenar (A→Z, contrato más nuevo, termina primero), barra del plazo
+       con aviso de "termina en N días" y documento que se copia al tocarlo.
+
    LA LLAVE es el ID CONTRATO (documento-contrato). EDILBERTO sale tres
    veces, una por contrato, y cada tarjeta abre SU ficha.
    ============================================================ */
@@ -40,7 +46,8 @@
       extras: Array.isArray(g.extras) ? g.extras : [],
       sec: g.sec || '',
       sup: g.sup || '',
-      busca: g.busca || ''
+      busca: g.busca || '',
+      orden: g.orden || 'nombre'
     };
   }
   function guardarFiltro() { K.guardar.escribir(FILTRO_K, F); }
@@ -48,6 +55,14 @@
   /** El arranque entrega la lista hecha: se mete sin viajar. */
   function recibir(datos) {
     TODAS = K.piezas.listas.expandir(datos).map(pulir);
+    HORA = new Date();
+  }
+  var HORA = null;             /* cuándo llegó la lista: se enseña junto al conteo */
+
+  function horaCorta(d) {
+    if (!d) return '';
+    var h = d.getHours(), m = ('0' + d.getMinutes()).slice(-2);
+    return (h % 12 || 12) + ':' + m + (h < 12 ? ' a. m.' : ' p. m.');
   }
 
   var TODAS = null;
@@ -114,6 +129,28 @@
     });
   }
 
+  /* 5.1.1 · ORDENAR. La hoja no trae un orden útil para trabajar: se ordena
+     aquí, sin viajar. "Termina primero" pone arriba lo que vence antes. */
+  function fechaDe(s) {
+    var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || ''));
+    return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
+  }
+  function ordenar(filas) {
+    var o = F.orden || 'nombre';
+    var copia = filas.slice();
+    if (o === 'contrato') copia.sort(function (a, b) { return (parseInt(b.contrato, 10) || 0) - (parseInt(a.contrato, 10) || 0); });
+    else if (o === 'fin') copia.sort(function (a, b) {
+      var x = fechaDe(a.fin), y = fechaDe(b.fin);
+      if (!x && !y) return 0; if (!x) return 1; if (!y) return -1;
+      return x - y;
+    });
+    else copia.sort(function (a, b) {
+      var ea = a.estado === 'ACTIVO' ? 0 : 1, eb = b.estado === 'ACTIVO' ? 0 : 1;
+      return ea - eb || String(a.nombre).localeCompare(String(b.nombre), 'es');
+    });
+    return copia;
+  }
+
   function textoFiltros() {
     var t = [];
     t.push(F.estado === 'ACTIVO' ? 'activos' : F.estado === 'INACTIVO' ? 'inactivos' : 'todos los estados');
@@ -167,9 +204,15 @@
     );
     var inp = buscar.querySelector('input');
     inp.value = F.busca;
-    var recargar = K.nodo('<button type="button" class="kit-btn kit-btn--plano ct-recargar" aria-label="Traer la lista de nuevo">' +
-      K.icono('recargar', 18) + '</button>');
+    var recargar = K.nodo('<button type="button" class="kit-btn kit-btn--plano ct-recargar" aria-label="Refrescar la lista" title="Refrescar la lista">' +
+      K.icono('recargar', 18) + '<span>Refrescar</span></button>');
+    var orden = K.nodo('<label class="ct-orden"><span class="kit-oculto">Ordenar</span><select aria-label="Ordenar la lista">' +
+      '<option value="nombre">A → Z</option><option value="contrato">Contrato más nuevo</option>' +
+      '<option value="fin">Termina primero</option></select></label>');
+    orden.querySelector('select').value = F.orden || 'nombre';
+    orden.querySelector('select').addEventListener('change', function (ev) { F.orden = ev.target.value; cambio(); });
     barra.appendChild(buscar);
+    barra.appendChild(orden);
     barra.appendChild(recargar);
     caja.appendChild(barra);
 
@@ -281,16 +324,17 @@
 
     function pintar() {
       repintarPastillas();
-      var filas = filtradas();
+      var filas = ordenar(filtradas());
       VISTA = filas;
       conteo.innerHTML = '<b>' + K.numero(filas.length) + '</b> ' + (filas.length === 1 ? 'contrato' : 'contratos') +
-        ' · <span>' + K.esc(textoFiltros()) + '</span>';
+        ' · <span>' + K.esc(textoFiltros()) + '</span>' +
+        (HORA ? '<span class="ct-sello">' + K.icono('reloj', 13) + ' Al día a las ' + K.esc(horaCorta(HORA)) + '</span>' : '');
       rej.innerHTML = '';
       if (!filas.length) {
         rej.appendChild(K.nodo('<div class="kit-tarjeta ct-vacio"><p>No hay contratos con estos filtros.</p>' +
           '<button type="button" class="kit-btn kit-btn--plano">Quitar los filtros</button></div>'));
         rej.querySelector('button').addEventListener('click', function () {
-          F = { estado: 'ACTIVO', extras: [], sec: '', sup: '', busca: '' };
+          F = { estado: 'ACTIVO', extras: [], sec: '', sup: '', busca: '', orden: F.orden || 'nombre' };
           inp.value = '';
           cambio();
         });
@@ -305,7 +349,7 @@
     mas.addEventListener('click', function () {
       var desde = visibles;
       visibles += POR_TANDA;
-      var filas = filtradas();
+      var filas = ordenar(filtradas());
       filas.slice(desde, visibles).forEach(function (f) { rej.appendChild(tarjeta(f)); });
       mas.hidden = filas.length <= visibles;
       mas.textContent = 'Ver ' + Math.min(POR_TANDA, filas.length - visibles) + ' más (quedan ' + (filas.length - visibles) + ')';
@@ -343,12 +387,13 @@
     cab.appendChild(K.nodo(
       '<div class="ct-t__quien">' +
       '  <h3 class="ct-t__n">' + K.esc(nombre(f.nombre)) + '</h3>' +
-      '  <p class="ct-t__doc">CC/NIT ' + K.esc(f.doc) + '</p>' +
+      '  <button type="button" class="ct-t__doc" title="Toca para copiar">CC/NIT ' + K.esc(f.doc) + ' ' + K.icono('copiar', 12) + '</button>' +
       '</div>'
     ));
     cab.appendChild(K.nodo('<span class="kit-pastilla ' + (f.estado === 'ACTIVO' ? 'kit-pastilla--ok' : 'kit-pastilla--aviso') +
       ' ct-t__estado" aria-pressed="true">' + K.esc(f.estado) + '</span>'));
     t.appendChild(cab);
+    cab.querySelector('.ct-t__doc').addEventListener('click', function () { copiar(f.doc, 'Documento copiado'); });
 
     var marcas = [];
     if (f.tramo) marcas.push('<span class="ct-marca">' + K.esc(f.tramo) + '</span>');
@@ -358,9 +403,9 @@
       '<dl class="ct-t__datos">' +
       '  <div><dt>Contrato</dt><dd>' + K.esc(f.contrato || '—') + (f.fecha ? ' <small>de ' + K.esc(f.fecha) + '</small>' : '') + '</dd></div>' +
       '  <div><dt>Secretaría</dt><dd>' + K.esc(titulo(f.sec) || '—') + '</dd></div>' +
-      '  <div><dt>Plazo</dt><dd>' + K.esc(f.inicio || '¿?') + ' → ' + K.esc(f.fin || '¿?') + '</dd></div>' +
       '</dl>'
     ));
+    t.appendChild(plazo(f));
     if (f.sup && K.piezas.personas) {
       var s = K.nodo('<div class="ct-t__sup"></div>');
       s.appendChild(K.piezas.personas.chip(f.sup, 'Supervisor(a)', { tam: 26 }));
@@ -372,7 +417,9 @@
     return t;
   }
 
-  /** Detalles · WhatsApp · Drive · estado. Las mismas en tarjeta y ficha. */
+  /** Detalles · WhatsApp · Drive. Las mismas en tarjeta y ficha.
+      5.1.1: SIN activar/inactivar. Oss lo hace de forma automática con otro
+      script; un botón aquí sería una segunda puerta para lo mismo. */
   function acciones(f, enFicha) {
     var a = K.nodo('<div class="ct-acc"></div>');
     if (!enFicha) {
@@ -393,48 +440,7 @@
       window.open('https://drive.google.com/drive/folders/' + encodeURIComponent(f.carpeta), '_blank', 'noopener');
     });
     a.appendChild(dr);
-    if (C.puede('editarContratista')) {
-      var activo = f.estado === 'ACTIVO';
-      var es = K.nodo('<button type="button" class="ins-accion ct-acc__estado' + (activo ? ' ct-acc__estado--apagar' : '') + '">' +
-        K.icono(activo ? 'prohibido' : 'check', 16) + ' ' + (activo ? 'Inactivar' : 'Activar') + '</button>');
-      es.addEventListener('click', function () { cambiarEstado(f, activo ? 'INACTIVO' : 'ACTIVO'); });
-      a.appendChild(es);
-    }
     return a;
-  }
-
-  /**
-   * ACTIVO ↔ INACTIVO. Antes eran dos toques (la pastilla y "GUARDAR
-   * ESTADO") y el cambio de la pastilla se veía aunque no se guardara:
-   * quedaba en pantalla un INACTIVO que en la hoja seguía ACTIVO. Ahora es
-   * un botón con confirmación, y la tarjeta cambia solo cuando el CORE
-   * responde.
-   */
-  function cambiarEstado(f, nuevo) {
-    var inactivar = nuevo === 'INACTIVO';
-    K.piezas.confirmar.abrir({
-      titulo: inactivar ? '¿Inactivar este contrato?' : '¿Activar este contrato?',
-      lista: [['Contratista', nombre(f.nombre)], ['Contrato', f.contrato + ' · ' + titulo(f.sec)], ['Queda', nuevo]],
-      nota: inactivar
-        ? 'Un contrato INACTIVO no deja entrar al contratista con él a su app, y deja de contarse entre los activos.'
-        : 'El contratista podrá volver a entrar a su app con este contrato.',
-      si: inactivar ? 'Inactivar' : 'Activar', no: 'Cancelar'
-    }).then(function (ok) {
-      if (!ok) return;
-      K.piezas.guardado.abrir({ titulo: inactivar ? 'Inactivando el contrato' : 'Activando el contrato', sub: 'No cierres esta ventana hasta que termine.' });
-      K.pedir('contratistaEstado', { idContrato: f.id, estado: nuevo })
-        .then(function (r) {
-          var fila = pulir(K.piezas.listas.expandir({ campos: r.campos, filas: [r.fila] })[0]);
-          for (var i = 0; i < TODAS.length; i++) if (TODAS[i].id === fila.id) { TODAS[i] = fila; break; }
-          K.piezas.guardado.listo({ sub: 'El contrato quedó ' + nuevo + '.' });
-          /* se repinta la vista donde se está, con el filtro puesto */
-          window.dispatchEvent(new HashChangeEvent('hashchange'));
-        })
-        ['catch'](function (e) {
-          K.piezas.guardado.fallo();
-          K.aviso(e && e.message ? e.message : 'No se pudo cambiar el estado.', 'malo', 7000);
-        });
-    });
   }
 
   /* ══════════════ la ficha ══════════════ */
@@ -571,6 +577,41 @@
     if (!v) return null;
     return K.nodo('<div class="dato' + (largo ? ' dato--largo' : '') + '"><span class="dato__e">' + K.esc(etiqueta) +
       '</span><span class="dato__v">' + K.esc(v) + '</span></div>');
+  }
+
+  /**
+   * 5.1.1 · EL PLAZO SE VE, NO SE LEE. Dos fechas sueltas obligan a hacer la
+   * cuenta de cabeza. La barra dice cuánto del plazo ya corrió y, si termina
+   * en los próximos 30 días, lo avisa. Sale de las fechas que ya trae la
+   * lista: no cuesta un viaje. Si faltan las fechas, se dice.
+   */
+  function plazo(f) {
+    var ini = fechaDe(f.inicio), fin = fechaDe(f.fin);
+    var caja = K.nodo('<div class="ct-plazo"></div>');
+    if (!ini || !fin) {
+      caja.appendChild(K.nodo('<p class="ct-plazo__t"><span>Plazo</span><b class="ct-plazo__falta">Sin fechas del acta de inicio</b></p>'));
+      return caja;
+    }
+    var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    var total = Math.max(1, fin - ini), corrido = Math.min(Math.max(hoy - ini, 0), total);
+    var pct = Math.round(corrido * 100 / total);
+    var dias = Math.round((fin - hoy) / 864e5);
+    var nota = '';
+    if (f.estado === 'ACTIVO' && dias >= 0 && dias <= 30) nota = '<em class="ct-plazo__pronto">Termina en ' + dias + (dias === 1 ? ' día' : ' días') + '</em>';
+    caja.appendChild(K.nodo('<p class="ct-plazo__t"><span>Plazo</span><b>' + K.esc(f.inicio) + ' → ' + K.esc(f.fin) + '</b></p>'));
+    caja.appendChild(K.nodo('<div class="ct-plazo__barra' + (nota ? ' ct-plazo__barra--pronto' : '') + '" role="img" aria-label="Plazo corrido ' + pct + ' por ciento">' +
+      '<i style="width:' + pct + '%"></i></div>'));
+    caja.appendChild(K.nodo('<p class="ct-plazo__pie"><span>' + pct + '% del plazo</span>' + nota + '</p>'));
+    return caja;
+  }
+
+  function copiar(texto, aviso) {
+    var hecho = function () { K.vibrar(8); K.aviso(aviso || 'Copiado', 'ok', 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(String(texto)).then(hecho, function () { K.aviso(String(texto), 'info', 5000); });
+    } else {
+      K.aviso(String(texto), 'info', 5000);
+    }
   }
 
   function nombre(s) { return K.piezas.personas ? K.piezas.personas.nombrePropio(s) : String(s || ''); }

@@ -66,7 +66,11 @@ var ARMAZON = [
   './kit/insights.js', './kit/insights.css',
   './kit/pastillas.js',
   './kit/personas.js', './kit/personas.css',
-  './kit/perfil.js'
+  './kit/perfil.js',
+  /* 5.1.1 · soporte */
+  './kit/adjuntos.js', './kit/adjuntos.css',
+  './kit/imagenes.js',
+  './kit/soporte.js', './kit/soporte.css'
 ];
 
 self.addEventListener('install', function (e) {
