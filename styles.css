@@ -2010,16 +2010,40 @@
 .ct-marca--susp { background: rgba(var(--k-marca-rgb), .08); color: var(--k-tinta-2); display: inline-flex; gap: 4px; align-items: center; }
 
 /* la fila de gestión: separada de Detalles/WhatsApp/Drive, porque cambia el contrato */
-.ct-gest { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--k-linea); }
-.ct-ficha__cab .ct-gest { flex: 1 1 100%; }
+/* 5.5: con Editar son cuatro botones; en la tarjeta van 2 × 2 (en fila no
+   cabían en un teléfono) y en la ficha, que es ancha, en una sola fila */
+.ct-gest { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--k-linea); }
+.ct-ficha__cab .ct-gest { flex: 1 1 100%; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .ct-gest__b {
-  flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px 6px; border-radius: var(--k-r-pill); border: 1px solid rgba(var(--k-marca-rgb), .28);
   background: transparent; color: var(--k-marca); font: 600 .74rem/1 var(--k-fuente); cursor: pointer; white-space: nowrap;
   transition: background .2s, transform .12s;
 }
 .ct-gest__b:hover { background: rgba(var(--k-marca-rgb), .08); }
 .ct-gest__b:active { transform: scale(.97); }
+
+/* 5.5 · editar contrato: la casilla del OTROSÍ y los cambios anteriores */
+.gs-otrosi {
+  display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--k-linea); background: rgba(var(--k-marca-rgb), .04); transition: background .2s, border-color .2s;
+}
+.gs-otrosi input { width: 20px; height: 20px; margin-top: 2px; flex: 0 0 auto; accent-color: var(--k-marca); }
+.gs-otrosi__txt { display: flex; flex-direction: column; gap: 4px; font: 400 .9rem/1.35 var(--k-fuente); color: var(--k-tinta); }
+.gs-otrosi__txt small { font: 400 .8rem/1.45 var(--k-fuente); color: var(--k-apagado); }
+.gs-otrosi__con { display: none; }
+.gs-otrosi--si { border-color: rgba(var(--k-marca-rgb), .45); background: rgba(var(--k-marca-rgb), .1); }
+.gs-otrosi--si .gs-otrosi__sin { display: none; }
+.gs-otrosi--si .gs-otrosi__con { display: block; color: var(--k-tinta-2); }
+.gs-hist { padding: 16px; gap: 10px; }
+.gs-hist .grupo__t { display: flex; gap: 6px; align-items: center; }
+.gs-hist__i { padding: 10px 0; border-top: 1px dashed var(--k-linea); }
+.gs-hist__i:first-of-type { border-top: 0; padding-top: 0; }
+.gs-hist__cab { margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font: 500 .76rem/1.3 var(--k-fuente); color: var(--k-apagado); }
+.gs-hist__m { padding: 3px 8px; border-radius: var(--k-r-pill); background: rgba(var(--k-marca-rgb), .08); color: var(--k-tinta-2); font-weight: 700; letter-spacing: .3px; }
+.gs-hist__m--otrosi { background: var(--k-aviso-fondo); color: var(--k-aviso); }
+.gs-hist__i ul { margin: 0; padding-left: 18px; font: 400 .82rem/1.45 var(--k-fuente); color: var(--k-tinta); overflow-wrap: anywhere; }
+.gs-hist__aviso { margin: 6px 0 0; font: 400 .74rem/1.3 var(--k-fuente); color: var(--k-apagado); }
 
 
 /* ══════════════════════════════════════════════════════════════

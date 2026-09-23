@@ -246,6 +246,7 @@
     adicion: function (sub) { window.GESTION.adicion(sub); },
     cesion: function (sub) { window.GESTION.cesion(sub); },
     suspension: function (sub) { window.GESTION.suspension(sub); },
+    editar: function (sub) { window.GESTION.editar(sub); },   /* 5.5 */
     /* 5.3 */
     revisar: function () { window.REVISION.lista(); },
     cuenta: function (sub) { window.REVISION.detalle(sub); },
@@ -263,6 +264,7 @@
     adicion: 'ADICIÓN',
     cesion: 'CESIÓN',
     suspension: 'SUSPENSIÓN',
+    editar: 'EDITAR CONTRATO',
     revisar: 'REVISAR CUENTAS',
     cuenta: 'REVISIÓN DE CUENTA',
     requerimientos: 'REQUERIMIENTOS',
@@ -274,7 +276,7 @@
      a exigir en cada llamada: esto solo evita pintar lo que no se puede. */
   var PERMISO = {
     contratistas: 'contratistas', contratista: 'contratistas',
-    agregar: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension',
+    agregar: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension', editar: 'editarContratista',
     revisar: 'revisarCuentas', cuenta: 'revisarCuentas',
     requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte'
   };
@@ -298,7 +300,7 @@
        adición/cesión/suspensión a la ficha de la que salieron */
     var resto = partes.slice(1).join('/');
     K.piezas.banner.atras(v === 'inicio' ? null : function () {
-      if (v === 'adicion' || v === 'cesion' || v === 'suspension') irA('contratista/' + resto);
+      if (v === 'adicion' || v === 'cesion' || v === 'suspension' || v === 'editar') irA('contratista/' + resto);
       else if (v === 'contratista' || v === 'agregar') irA('contratistas');
       else if (v === 'cuenta') irA('revisar');
       else irA('inicio');

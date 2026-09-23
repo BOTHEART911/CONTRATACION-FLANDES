@@ -769,6 +769,235 @@
     });
   }
 
+  /* ══════════════ EDITAR (5.5) ══════════════
+     Una sola puerta para las dos razones de tocar un contrato registrado:
+     · CORRECCIÓN: se escribió mal. Queda quién cambió qué y cuándo.
+     · OTROSÍ (la casilla): el contrato cambió de verdad. Además, al
+       contratista le llega el aviso de que en su próxima cuenta adjunte
+       el OTROSÍ que encuentra en el SECOP II.
+     Documento, nombre y N° de contrato no se editan: cambiar de persona
+     es una CESIÓN y el número es parte de la llave del contrato. */
+
+  var EDITABLES = [
+    ['secretaria', 'Secretaría'], ['supervisor', 'Supervisor(a)'], ['tipo', 'Tipo de contrato'],
+    ['fechaContrato', 'Fecha del contrato'], ['valorInicial', 'Valor inicial'], ['cdp', 'CDP'],
+    ['cdpAdicion', 'CDP 1ª adición'], ['cdpAdicion2', 'CDP 2ª adición'], ['objeto', 'Objeto'], ['obligaciones', 'Obligaciones']
+  ];
+
+  function normObjeto(s) { return String(s || '').replace(/\s+/g, ' ').trim().toUpperCase(); }
+  function numerar(l) { return (l || []).map(function (o, i) { return (i + 1) + '. ' + o; }).join('\n'); }
+  function corto(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
+
+  /** Lo que cambió respecto a lo que hay en la hoja, igual que lo decide el CORE. */
+  function cambiosDe(a, D) {
+    var c = {};
+    if (K.norm(D.secretaria) !== K.norm(a.secretaria)) c.secretaria = D.secretaria;
+    if (K.norm(D.supervisor) !== K.norm(a.supervisor)) c.supervisor = D.supervisor;
+    if (K.norm(D.tipo) !== K.norm(a.tipo)) c.tipo = D.tipo;
+    if (String(D.fechaContrato || '') !== String(a.fechaContrato || '')) c.fechaContrato = D.fechaContrato;
+    if (K.aNumero(D.valorInicial) !== Number(a.valorInicial || 0)) c.valorInicial = String(K.aNumero(D.valorInicial));
+    ['cdp', 'cdpAdicion', 'cdpAdicion2'].forEach(function (k) {
+      if (String(D[k] || '') !== String(a[k] || '')) c[k] = String(D[k] || '');
+    });
+    if (normObjeto(D.objeto) !== normObjeto(a.objeto)) c.objeto = normObjeto(D.objeto);
+    var l = partirObligaciones(D.obligaciones);
+    var antes = (a.obligaciones || []).map(function (o) { return String(o).replace(/\s+/g, ' ').trim(); });
+    if (JSON.stringify(l) !== JSON.stringify(antes)) c.obligaciones = l;
+    return c;
+  }
+
+  function textoDe(k, v) {
+    if (k === 'valorInicial') return K.pesos(v);
+    if (k === 'obligaciones') return (v || []).length + ((v || []).length === 1 ? ' obligación' : ' obligaciones');
+    if (k === 'secretaria') return titulo(v);
+    if (k === 'supervisor') return nombre(v);
+    if (k === 'objeto') return corto(v, 70);
+    return String(v || '') || '(vacío)';
+  }
+
+  function faltaEdicion(D, anio) {
+    var f = [];
+    if (!D.secretaria) f.push('la secretaría');
+    if (!D.supervisor) f.push('el supervisor');
+    if (!D.tipo) f.push('el tipo de contrato');
+    if (!D.fechaContrato) f.push('la fecha del contrato');
+    if (!K.aNumero(D.valorInicial)) f.push('el valor inicial');
+    var re = new RegExp('^' + anio + '\\d{6}$');
+    if (!re.test(D.cdp || '')) f.push('el CDP');
+    if (D.cdpAdicion && !re.test(D.cdpAdicion)) f.push('el CDP de la 1ª adición');
+    if (D.cdpAdicion2 && !re.test(D.cdpAdicion2)) f.push('el CDP de la 2ª adición');
+    if (normObjeto(D.objeto).length < 20) f.push('el objeto');
+    var n = partirObligaciones(D.obligaciones).length;
+    if (!n) f.push('las obligaciones');
+    if (n > 26) f.push('máximo 26 obligaciones');
+    return f;
+  }
+
+  /** La lista del formulario con el valor de hoy aunque ya no esté (supervisor que se fue). */
+  function conActual(lista, actual, pinta) {
+    var l = lista.slice();
+    if (actual && !l.some(function (x) { return K.norm(x) === K.norm(actual); })) l.unshift(actual);
+    return l.map(function (x) { return { valor: x, texto: pinta(x) }; });
+  }
+
+  function editar(sub) {
+    var id = decodeURIComponent(String(sub || ''));
+    var caja = K.nodo('<div class="kit-ancho vista gs"></div>');
+    C.app.appendChild(caja);
+    cabecera(caja, 'lapiz', 'EDITAR CONTRATO',
+      'Corrige un dato mal escrito o registra un <b>OTROSÍ</b>. Documento, nombre y N° de contrato no se editan aquí.');
+    var cuerpo = K.nodo('<div class="gs-cuerpo"></div>');
+    caja.appendChild(cuerpo);
+    K.piezas.creditos.montar(caja);
+    var espera = K.pedir('contratoEditarPara', { idContrato: id }, { ms: 60000 });
+    K.piezas.esqueletos.mientras(cuerpo, espera, { forma: 'texto', cuantos: 8 })
+      .then(function (e) {
+        ULTIMA = { vista: 'editar', contrato: e };
+        cuerpo.innerHTML = '';
+        pintarEdicion(cuerpo, e);
+      })
+      ['catch'](function (err) { cuerpo.innerHTML = ''; cuerpo.appendChild(C.errorCaja(err)); });
+  }
+
+  function pintarEdicion(cuerpo, e) {
+    var a = e.actual, op = e.opciones, anio = op.vigencia;
+    var quien = K.nodo('<section class="kit-tarjeta grupo gs-resumen"></section>');
+    var cab = K.nodo('<div class="ct-t__cab"></div>');
+    if (K.piezas.personas) cab.appendChild(K.piezas.personas.avatar(e.nombre, { tam: 44 }));
+    cab.appendChild(K.nodo('<div class="ct-t__quien"><h3 class="ct-t__n">' + K.esc(nombre(e.nombre)) + '</h3>' +
+      '<p class="ct-t__doc">CC/NIT ' + K.esc(e.documento) + ' · Contrato ' + K.esc(e.contrato) + ' · ' + K.esc(e.tramo || 'PRIMARIO') + '</p></div>'));
+    quien.appendChild(cab);
+    cuerpo.appendChild(quien);
+
+    if (e.estado !== 'ACTIVO' || !e.puede) {
+      cuerpo.appendChild(K.nodo('<p class="kit-tarjeta formulario__nota formulario__nota--fuerte ct-aviso">' +
+        (e.estado !== 'ACTIVO' ? 'Este contrato está ' + K.esc(e.estado) + ': solo se editan contratos ACTIVOS.' : 'Tu rol no puede editar contratos.') + '</p>'));
+      pintarHistorial(cuerpo, e.historial);
+      return;
+    }
+
+    var D = {
+      secretaria: a.secretaria, supervisor: a.supervisor, tipo: a.tipo, fechaContrato: a.fechaContrato,
+      valorInicial: String(a.valorInicial || ''), cdp: a.cdp, cdpAdicion: a.cdpAdicion, cdpAdicion2: a.cdpAdicion2,
+      objeto: a.objeto, obligaciones: numerar(a.obligaciones)
+    };
+    var f = K.nodo('<form class="kit-tarjeta formulario gs-paso" novalidate></form>');
+
+    /* ---- la casilla va arriba: decide qué pasa al guardar ---- */
+    var otrosi = K.nodo(
+      '<label class="gs-otrosi">' +
+      '  <input type="checkbox" name="otrosi">' +
+      '  <span class="gs-otrosi__txt"><b>Este cambio es por un OTROSÍ</b>' +
+      '  <small class="gs-otrosi__sin">Sin marcar es una <b>corrección</b>: queda registrado quién cambió qué y cuándo, sin avisar al contratista.</small>' +
+      '  <small class="gs-otrosi__con">Al guardar, al contratista le llega un aviso (notificación y WhatsApp): se efectuó un cambio en su contrato por OTROSÍ y en su próxima cuenta debe adjuntar ese documento, que encuentra en el SECOP II.</small>' +
+      '  </span>' +
+      '</label>');
+    var chk = otrosi.querySelector('input');
+    chk.addEventListener('change', function () { otrosi.classList.toggle('gs-otrosi--si', chk.checked); K.vibrar(8); });
+    f.appendChild(otrosi);
+
+    f.appendChild(K.nodo('<h3 class="grupo__t">El contrato</h3>'));
+    var nomSec = op.secretarias.map(function (x) { return x.nombre; });
+    var nomSup = op.supervisores.map(function (x) { return x.nombre; });
+    campoLista(f, D, 'secretaria', 'Secretaría', 'Si cambia, su carpeta de Drive se mueve a la de la nueva secretaría.',
+      conActual(nomSec, a.secretaria, titulo));
+    campoLista(f, D, 'supervisor', 'Supervisor(a)', e.abiertas && e.abiertas.length
+      ? 'Si cambia, ' + (e.abiertas.length === 1 ? 'su cuenta abierta pasa' : 'sus ' + e.abiertas.length + ' cuentas abiertas pasan') + ' al nuevo supervisor.'
+      : 'Los avisos de sus cuentas van al grupo de WhatsApp de esta persona.',
+      conActual(nomSup, a.supervisor, nombre));
+    var fila1 = K.nodo('<div class="campo-fila"></div>');
+    campoFecha(fila1, D, 'fechaContrato', 'Fecha del contrato', '', { anioFijo: anio });
+    campoLista(fila1, D, 'tipo', 'Tipo de contrato', '',
+      conActual(op.tipos, a.tipo, function (t) { return t.charAt(0) + t.slice(1).toLowerCase(); }));
+    f.appendChild(fila1);
+
+    var adic = (e.adicion1 || 0) + (e.adicion2 || 0);
+    var ecoTotal = K.nodo('<p class="gs-calc gs-calc--total" aria-live="polite"></p>');
+    campoPesos(f, D, 'valorInicial', 'Valor inicial', 'El valor en letras lo escribe el sistema.', {
+      alCambiar: function (n) {
+        ecoTotal.innerHTML = adic ? 'Con las adiciones, el valor final queda en <b>' + K.esc(K.pesos((n || 0) + adic)) + '</b>.' : '';
+      }
+    });
+    f.appendChild(ecoTotal);
+    ecoTotal.innerHTML = adic ? 'Con las adiciones, el valor final queda en <b>' + K.esc(K.pesos(K.aNumero(D.valorInicial) + adic)) + '</b>.' : '';
+
+    campoCodigo(f, D, 'cdp', 'CDP', 'No puede estar usado en otro contrato.', anio);
+    if (e.adicion1 || a.cdpAdicion) campoCodigo(f, D, 'cdpAdicion', 'CDP de la 1ª adición', '', anio);
+    if (e.adicion2 || a.cdpAdicion2) campoCodigo(f, D, 'cdpAdicion2', 'CDP de la 2ª adición', '', anio);
+
+    var obj = campoTexto(f, D, 'objeto', 'Objeto del contrato', 'Se guarda en mayúsculas y en un solo párrafo.', { area: true, filas: 4 });
+    var obl = campoTexto(f, D, 'obligaciones', 'Obligaciones',
+      'Una por número (1. 2. 3. …). Se separan por el número, no por los saltos de línea. Máximo 26.', { area: true, filas: 10 });
+    var cuenta = K.nodo('<div class="gs-obl" aria-live="polite"></div>');
+    obl.parentNode.appendChild(cuenta);
+    function pintarObl() {
+      var l = partirObligaciones(D.obligaciones);
+      cuenta.innerHTML = '<p class="gs-obl__n"><b>' + l.length + '</b> ' + (l.length === 1 ? 'obligación' : 'obligaciones') +
+        (l.length > 26 ? ' — pasan de 26' : '') + '</p>';
+    }
+    function crecer(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 4) + 'px'; }
+    obl.addEventListener('input', pintarObl);
+    obl.addEventListener('input', function () { crecer(obl); });
+    obj.addEventListener('input', function () { crecer(obj); });
+    pintarObl();
+
+    botones(f, 'Guardar cambios', null, function () { volverAFicha(e); });
+    if (K.piezas.fechas) K.piezas.fechas.montar(f);
+    cuerpo.appendChild(f);
+    requestAnimationFrame(function () { crecer(obj); crecer(obl); });
+    pintarHistorial(cuerpo, e.historial);
+
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var falta = faltaEdicion(D, anio);
+      if (falta.length) { K.aviso('Revisa: ' + falta.join(', ') + '.', 'aviso', 7000); return; }
+      var c = cambiosDe(a, D);
+      var claves = Object.keys(c);
+      if (!claves.length) { K.aviso('No cambiaste nada.', 'aviso', 4000); return; }
+      var es = chk.checked;
+      var lista = EDITABLES.filter(function (x) { return c[x[0]] !== undefined; }).map(function (x) {
+        var antes = x[0] === 'valorInicial' ? a.valorInicial : a[x[0]];
+        return [x[1], textoDe(x[0], antes) + '  →  ' + textoDe(x[0], c[x[0]])];
+      });
+      var notas = [];
+      if (c.secretaria) notas.push('Su carpeta de Drive se mueve a la de la nueva secretaría.');
+      if (c.supervisor && e.abiertas && e.abiertas.length) notas.push('Sus cuentas abiertas pasan al nuevo supervisor.');
+      notas.push(es ? 'Es un OTROSÍ: al contratista le llega el aviso para que lo adjunte en su próxima cuenta.'
+                    : 'Es una corrección: no se le avisa al contratista.');
+      guardar({
+        titulo: es ? 'OTROSÍ del contrato ' + e.contrato : 'Corrección del contrato ' + e.contrato,
+        lista: lista, nota: notas.join(' '), si: es ? 'Guardar y avisar' : 'Guardar corrección',
+        accion: 'contratoEditar', datos: { idContrato: e.idContrato, huella: e.huella, otrosi: es, cambios: c },
+        cohete: es ? 'Registrando el OTROSÍ' : 'Guardando la corrección',
+        pasos: es ? ['Revisando los datos', 'Guardando', 'Avisando al contratista'] : ['Revisando los datos', 'Guardando']
+      }).then(function (r) {
+        if (!r) return;
+        if (r.aviso && r.aviso.ok === false) avisoEnvio(r);
+        else K.aviso(es ? 'OTROSÍ registrado. El contratista ya tiene el aviso.' : 'Contrato corregido.', 'ok', 5000);
+        if (typeof r.carpetaMovida === 'string') K.aviso('Se guardó, pero la carpeta de Drive no se pudo mover: ' + r.carpetaMovida, 'aviso', 9000);
+        volverAFicha(e);
+      });
+    });
+  }
+
+  function pintarHistorial(cuerpo, h) {
+    if (!h || !h.length) return;
+    var g = K.nodo('<section class="kit-tarjeta grupo gs-hist"><h3 class="grupo__t">' + K.icono('reloj', 16) + ' Cambios anteriores</h3></section>');
+    h.forEach(function (x) {
+      var es = x.motivo === 'OTROSI';
+      var it = K.nodo('<article class="gs-hist__i">' +
+        '<p class="gs-hist__cab"><span class="gs-hist__m' + (es ? ' gs-hist__m--otrosi' : '') + '">' + (es ? 'OTROSÍ' : 'CORRECCIÓN') + '</span>' +
+        '<span>' + K.esc(x.fecha) + ' · ' + K.esc(nombre(x.quien)) + '</span></p>' +
+        '<ul>' + (x.cambios || []).map(function (c) {
+          return '<li><b>' + K.esc(c.titulo) + ':</b> ' + K.esc(corto(c.antes, 60)) + ' → ' + K.esc(corto(c.despues, 60)) + '</li>';
+        }).join('') + '</ul>' +
+        (es && x.aviso ? '<p class="gs-hist__aviso">Aviso: ' + K.esc(x.aviso) + '</p>' : '') +
+        '</article>');
+      g.appendChild(it);
+    });
+    cuerpo.appendChild(g);
+  }
+
   /* ══════════════ fechas ══════════════ */
 
   function fechaDe(s) {
@@ -799,8 +1028,8 @@
   }
 
   window.GESTION = {
-    configurar: configurar, agregar: agregar, adicion: adicion, cesion: cesion, suspension: suspension,
+    configurar: configurar, agregar: agregar, adicion: adicion, cesion: cesion, suspension: suspension, editar: editar,
     /* para las pruebas y la ayuda */
-    _letras: letras, _partir: partirObligaciones, _plazo: plazoEntre, _ultima: function () { return ULTIMA; }
+    _letras: letras, _partir: partirObligaciones, _plazo: plazoEntre, _ultima: function () { return ULTIMA; }, _cambios: cambiosDe
   };
 }());

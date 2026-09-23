@@ -4,7 +4,7 @@ App de **Contratación** de la **Alcaldía de Flandes**. Ecosistema Flandes, Fas
 
 Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 
-## Qué hay aquí (hasta la entrega 5.4)
+## Qué hay aquí (hasta la entrega 5.5)
 
 - Entrada por el FLANDES-CORE con documento y contraseña (roles CREADOR y REVISOR; el DEV entra a todo).
 - Inicio con el resumen de los contratos (activos, adicionados, cedidos y activos por secretaría).
@@ -19,6 +19,7 @@ Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 - REQUERIMIENTOS (5.4): pedirle algo a uno o a varios contratistas (máximo 20); queda guardado, llega por notificación y WhatsApp y se marca atendido. Pastillas, buscador y Refrescar.
 - COMUNICADOS (5.4): publicar con documentos (Office se ve como PDF en el visor), aviso a los teléfonos, retirar y volver a publicar.
 - REPORTE (5.4): cuentas aprobadas y devueltas por rango, con quién revisó de verdad (nunca el supervisor); PDF membretado y Excel.
+- EDITAR CONTRATO (5.5): corregir secretaría, supervisor, tipo, fecha, valor inicial, CDP, objeto y obligaciones. Con la casilla OTROSÍ, al contratista le llega el aviso de adjuntar el OTROSÍ (SECOP II) en su próxima cuenta; sin ella es una corrección. Cada cambio queda con quién, qué y cuándo (historial en la misma vista).
 - Foto de perfil (la misma en las siete apps), Insights en todas las vistas, PWA instalable y modo oscuro.
 
 ## Estructura

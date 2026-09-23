@@ -266,6 +266,24 @@
     };
   };
 
+  /* 5.5 · editar: corrección u OTROSÍ */
+  GUIAS.editar = function () {
+    return {
+      guia: 'Cambia lo que haga falta y guarda. **Sin marcar la casilla** es una corrección: queda registrado quién cambió qué y cuándo. **Con la casilla OTROSÍ** además le llega un aviso al contratista para que adjunte el OTROSÍ (del SECOP II) en su próxima cuenta.',
+      botones: [
+        { texto: '¿Por qué no puedo cambiar el nombre o el número?', responde: function () {
+            return 'Cambiar de persona es una CESIÓN (tiene su propio botón). El N° de contrato y el documento forman la llave con la que el contrato se une a sus cuentas: si cambian, las cuentas quedarían huérfanas.';
+          } },
+        { texto: '¿Qué pasa si cambio el supervisor?', responde: function () {
+            return 'Queda el nuevo con su grupo de WhatsApp, y las cuentas que todavía no llegan al plan de pagos pasan a él. Las cerradas se quedan con quien las revisó.';
+          } },
+        { texto: '¿Y si otra persona lo está editando?', responde: function () {
+            return 'Si alguien guarda antes que tú, la app no deja pisar su cambio: te pide volver a abrir el contrato para ver lo que hay ahora.';
+          } }
+      ]
+    };
+  };
+
   /* ══════════════ 5.3 · revisar cuentas ══════════════ */
   function RV() { return window.REVISION || null; }
   function diasDe(f) {

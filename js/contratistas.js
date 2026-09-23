@@ -433,17 +433,18 @@
   }
 
   /**
-   * 5.2 · Adición, Cesión y Suspensión. Solo en contratos ACTIVOS y solo
+   * 5.2 · Adición, Cesión y Suspensión (5.5: y Editar). Solo en contratos ACTIVOS y solo
    * para quien tiene el permiso (CREADOR). Van aparte de Detalles /
    * WhatsApp / Drive porque cambian el contrato: no se tocan sin querer.
    */
   function gestion(f) {
     if (f.estado !== 'ACTIVO' || !C.puede) return null;
     var items = [
+      ['editar', 'lapiz', 'Editar', 'editarContratista'],   /* 5.5: corrección u OTROSÍ */
       ['adicion', 'mas', 'Adición'],
       ['cesion', 'persona', 'Cesión'],
       ['suspension', 'pausa', f.susp ? 'Suspensión ✓' : 'Suspensión']
-    ].filter(function (x) { return C.puede(x[0]); });
+    ].filter(function (x) { return C.puede(x[3] || x[0]); });
     if (!items.length) return null;
     var a = K.nodo('<div class="ct-gest" role="group" aria-label="Gestionar el contrato"></div>');
     items.forEach(function (x) {
