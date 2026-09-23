@@ -40,12 +40,31 @@
 
   /* ══════════════ el arranque, en UNA sola llamada ══════════════ */
 
-  function arranque() {
-    var quitar = (K.piezas.esqueletos && app)
+  /*
+   * 5.3.1 · LA PÁGINA EN BLANCO. Apps Script responde con una redirección a
+   * googleusercontent cuya llave es de UN solo uso; a veces llega vencida y
+   * Google devuelve un 404 en HTML aunque el servidor ya contestó. 'inicio'
+   * solo lee, así que se reintenta una vez sin preguntarle nada a nadie.
+   * Solo se reintenta lo que no escribe.
+   */
+  function leer(accion, datos, veces) {
+    return K.pedir(accion, datos || {}, { ms: 60000 })['catch'](function (e) {
+      var red = e && (e.codigo === 'RESPUESTA_NO_JSON' || e.codigo === 'SIN_RED' || e.codigo === 'TIEMPO');
+      if (red && (veces || 0) < 1) return leer(accion, datos, (veces || 0) + 1);
+      throw e;
+    });
+  }
+
+  /* conEsqueleto: solo al abrir la app. Cuando lo pide una vista que ya está
+     pintada (el inicio, la lista), NO se reemplaza la pantalla: era lo que la
+     dejaba en blanco si 'inicio' fallaba (el esqueleto se llevaba el saludo
+     y al quitarlo no quedaba nada). */
+  function arranque(conEsqueleto) {
+    var quitar = (conEsqueleto && K.piezas.esqueletos && app)
       ? K.piezas.esqueletos.poner(app, { forma: 'ficha', cuantos: 1, sitio: 'reemplaza', espera: 'Cargando los contratos' })
       : function () {};
 
-    return K.pedir('inicio', {}).then(function (d) {
+    return leer('inicio').then(function (d) {
       ARRANQUE = d;
       YO = d.yo || YO;
       if (d.personas && K.piezas.personas) K.piezas.personas.cargar(d.personas);
@@ -79,7 +98,7 @@
         titulo: 'CONTRATACIÓN',
         sub: 'Ingresa con tu documento y contraseña',
         imagen: M.APP_ICON || 'img/icono-512.png',
-        comprobar: function () { return arranque().then(function (d) { return d.yo; }); },
+        comprobar: function () { return arranque(true).then(function (d) { return d.yo; }); },
         alEntrar: arrancar
       });
     });
@@ -125,7 +144,7 @@
         puede: puede,
         irA: irA,
         errorCaja: errorCaja,
-        recargarTodo: function () { return arranque(); }
+        recargarTodo: function () { return arranque(false); }
       });
     }
 
@@ -314,13 +333,11 @@
       ] : []));
     }
 
+    var accRev = null;
     if (puede('revisarCuentas')) {
-      var n = ARRANQUE && typeof ARRANQUE.porRevisar === 'number' ? ARRANQUE.porRevisar : null;
-      bloque('CUENTAS', [
-        acceso('REVISAR CUENTAS', n === 0 ? 'Estás al día: no hay cuentas esperando revisión'
-          : 'Las cuentas que el supervisor ya revisó: documentos, evidencias, notas y decisión',
-          'img/procesos_de_cuenta.webp', function () { irA('revisar'); }, n)
-      ]);
+      accRev = acceso('REVISAR CUENTAS', 'Las cuentas que el supervisor ya revisó: documentos, evidencias, notas y decisión',
+        'img/procesos_de_cuenta.webp', function () { irA('revisar'); });
+      bloque('CUENTAS', [accRev]);
     }
 
     app.appendChild(caja);
@@ -331,6 +348,18 @@
     K.piezas.esqueletos.mientras(destino, espera, { forma: 'ficha', cuantos: 1 })
       .then(function () { pintarResumen(destino); })
       ['catch'](function (e) { destino.appendChild(errorCaja(e)); });
+
+    /* 5.3.1 · el número de REVISAR CUENTAS llega DESPUÉS, sin frenar el
+       inicio: contarlo dentro de 'inicio' obligaba a leer la hoja CUENTAS
+       entera (~2 s) en cada entrada. Y de paso la lista queda lista. */
+    if (accRev && window.REVISION) {
+      window.REVISION.cargar(false).then(function (l) {
+        var n = (l && l.cuentas) ? l.cuentas.length : 0;
+        var p = accRev.querySelector('.acceso__p');
+        if (n) accRev.insertAdjacentHTML('beforeend', '<b class="acceso__burbuja rv-burbuja" aria-label="' + n + ' por revisar">' + (n > 99 ? '99+' : n) + '</b>');
+        else if (p) p.textContent = 'Estás al día: no hay cuentas esperando revisión';
+      }, function () { /* sin número: la vista lo vuelve a pedir */ });
+    }
   }
 
   /* El resumen del inicio: cuatro cifras que se tocan y llevan a la lista

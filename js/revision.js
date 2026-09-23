@@ -74,9 +74,24 @@
     if (C.alCambiar) C.alCambiar(LISTA.cuentas.length);
   }
 
+  /* Lo que solo LEE se reintenta una vez si la redirección de Google llega
+     vencida (el 404 de googleusercontent). Guardar y decidir NUNCA se
+     reintentan: se duplicaría la decisión. */
+  function leer(accion, datos, veces) {
+    return K.pedir(accion, datos, { ms: 60000 })['catch'](function (e) {
+      var red = e && (e.codigo === 'RESPUESTA_NO_JSON' || e.codigo === 'SIN_RED' || e.codigo === 'TIEMPO');
+      if (red && (veces || 0) < 1) return leer(accion, datos, (veces || 0) + 1);
+      throw e;
+    });
+  }
+
+  var CARGANDO = null;
   function cargar(fresco) {
     if (LISTA && !fresco) return Promise.resolve(LISTA);
-    return K.pedir('cuentasPorRevisar', { fresco: !!fresco }, { ms: 60000 }).then(function (d) { recibir(d); return LISTA; });
+    if (CARGANDO && !fresco) return CARGANDO;   /* el inicio y la vista a la vez: un solo viaje */
+    CARGANDO = leer('cuentasPorRevisar', { fresco: !!fresco }).then(function (d) { CARGANDO = null; recibir(d); return LISTA; },
+      function (e) { CARGANDO = null; throw e; });
+    return CARGANDO;
   }
 
   function cuentas() { return (LISTA && LISTA.cuentas) || []; }
@@ -301,9 +316,9 @@
 
     if (!q.fila || !q.id) { caja.appendChild(C.errorCaja(new Error('Falta la cuenta.'), function () { C.irA('revisar'); })); return; }
 
-    var p = K.pedir('cuentaRevision', q, { ms: 60000 });
+    var p = leer('cuentaRevision', q);
     /* la carpeta se pide a la vez: tarda más (Drive) y no frena lo demás */
-    CARPETA_P = K.pedir('revisionDocs', q, { ms: 60000 }).then(function (r) {
+    CARPETA_P = leer('revisionDocs', q).then(function (r) {
       CARPETA = r || { carpeta: false, grupos: [] };
       if (D) repintarDocs();
       return CARPETA;
@@ -606,7 +621,7 @@
     var cu = D.cuenta;
     K.piezas.visor.abrir(lista.map(function (d) {
       var x = { titulo: d.titulo, cargar: function () {
-        return K.pedir('revisionDocumento', { fila: cu.fila, id: cu.idContrato, informe: cu.informe, archivo: d.id }, { ms: 90000 });
+        return leer('revisionDocumento', { fila: cu.fila, id: cu.idContrato, informe: cu.informe, archivo: d.id });
       } };
       if (d.tipo) x.tipo = d.tipo;
       return x;
