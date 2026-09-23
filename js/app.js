@@ -60,19 +60,31 @@
      pintada (el inicio, la lista), NO se reemplaza la pantalla: era lo que la
      dejaba en blanco si 'inicio' fallaba (el esqueleto se llevaba el saludo
      y al quitarlo no quedaba nada). */
-  function arranque(conEsqueleto) {
-    var quitar = (conEsqueleto && K.piezas.esqueletos && app)
-      ? K.piezas.esqueletos.poner(app, { forma: 'ficha', cuantos: 1, sitio: 'reemplaza', espera: 'Cargando los contratos' })
+  /*
+   * 7.0 · RENDIMIENTO (medido el 23/09 con datos reales)
+   *   · Cada viaje a Apps Script cuesta 1,6 a 2,2 s de transporte. Entrar eran
+   *     DOS viajes seguidos (login + inicio): ahora el login trae el arranque
+   *     (pre.arranque) y se ahorra uno entero.
+   *   · 'inicio' ya no trae la lista de contratistas (1,2 s de servidor y
+   *     68 KB): se pintan los botones y el RESUMEN DE CONTRATOS se llena en
+   *     segundo plano, como en CONTRATISTA.
+   */
+  function arranque(conEsqueleto, pre) {
+    var yaVino = pre && pre.arranque ? pre.arranque : null;
+    var quitar = (!yaVino && conEsqueleto && K.piezas.esqueletos && app)
+      ? K.piezas.esqueletos.poner(app, { forma: 'ficha', cuantos: 1, sitio: 'reemplaza', espera: 'Entrando' })
       : function () {};
 
-    return leer('inicio').then(function (d) {
+    return (yaVino ? Promise.resolve(yaVino) : leer('inicio', { conLista: false })).then(function (d) {
       ARRANQUE = d;
       YO = d.yo || YO;
       if (d.personas && K.piezas.personas) K.piezas.personas.cargar(d.personas);
       if (d.push && K.piezas.avisos && K.piezas.avisos.configurar) K.piezas.avisos.configurar(d.push);
       if (d.config && K.piezas.creditos && K.piezas.creditos.configurar) K.piezas.creditos.configurar(d.config);
-      /* la lista entera llega aquí: la vista CONTRATISTAS abre sin esperar */
+      /* un CORE viejo (sin la 7.0) todavía manda la lista: se aprovecha */
       if (d.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(d.contratistas);
+      /* la lista sale YA, en paralelo con el pintado del inicio */
+      else if (window.CONTRATISTAS && window.CONTRATISTAS.cargar) window.CONTRATISTAS.cargar()['catch'](function () {});
       quitar();
       return d;
     }, function (e) {
@@ -99,7 +111,8 @@
         titulo: 'CONTRATACIÓN',
         sub: 'Ingresa con tu documento y contraseña',
         imagen: M.APP_ICON || 'img/icono-512.png',
-        comprobar: function () { return arranque(true).then(function (d) { return d.yo; }); },
+        arranqueEnLogin: true,   /* 7.0: el login trae el inicio en el mismo viaje */
+        comprobar: function (login) { return arranque(true, login).then(function (d) { return d.yo; }); },
         alEntrar: arrancar
       });
     });
@@ -153,7 +166,7 @@
         puede: puede,
         irA: irA,
         errorCaja: errorCaja,
-        recargarTodo: function () { return arranque(false); }
+        recargarTodo: function () { return arranque(false); }   /* ya no se usa para la lista (7.0) */
       });
     }
 

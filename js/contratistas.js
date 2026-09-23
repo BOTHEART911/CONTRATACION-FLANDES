@@ -86,16 +86,19 @@
 
   /** Si la lista no llegó con el arranque (sesión recién abierta por otro
       camino), el arranque se repite: trae también caras y configuración. */
+  /* 7.0 · la lista ya no viaja con 'inicio': se pide aparte y UNA sola vez
+     aunque la pidan a la vez el arranque, el resumen y la vista (EN_CAMINO). */
+  var EN_CAMINO = null;
   function cargar(forzar) {
     if (TODAS && !forzar) return Promise.resolve(TODAS);
-    if (forzar) {
-      return K.pedir('contratistas').then(function (d) { recibir(d); return TODAS; });
-    }
-    return Promise.resolve(C.recargarTodo ? C.recargarTodo() : K.pedir('contratistas').then(recibir))
-      .then(function () { return TODAS || []; });
+    if (EN_CAMINO && !forzar) return EN_CAMINO;
+    var p = K.pedir('contratistas', {}, { ms: 60000 }).then(function (d) { recibir(d); return TODAS || []; });
+    EN_CAMINO = p;
+    p.then(function () { if (EN_CAMINO === p) EN_CAMINO = null; }, function () { if (EN_CAMINO === p) EN_CAMINO = null; });
+    return p;
   }
 
-  function olvidar() { TODAS = null; K.guardar.borrar(FILTRO_K); F = leerFiltro(); }
+  function olvidar() { TODAS = null; EN_CAMINO = null; FICHAS = {}; K.guardar.borrar(FILTRO_K); F = leerFiltro(); }
 
   /* ══════════════ el filtro ══════════════ */
 
@@ -462,7 +465,9 @@
     var a = K.nodo('<div class="ct-acc"></div>');
     if (!enFicha) {
       var ver = K.nodo('<button type="button" class="kit-btn kit-btn--marca ct-acc__ver">' + K.icono('documento', 16) + ' Detalles</button>');
-      ver.addEventListener('click', function () { K.vibrar(8); C.irA('contratista/' + encodeURIComponent(f.id)); });
+      ver.addEventListener('click', function () { K.vibrar(8); adelantar(f.id); C.irA('contratista/' + encodeURIComponent(f.id)); });
+      /* 7.0 · la ficha se empieza a pedir al APOYAR el dedo (o el ratón), no al soltarlo */
+      ver.addEventListener('pointerdown', function () { adelantar(f.id); });
       a.appendChild(ver);
     }
     var wa = K.nodo('<button type="button" class="ins-accion" aria-label="WhatsApp de ' + K.esc(f.nombre) + '">' + K.icono('whatsapp', 16) + ' WhatsApp</button>');
@@ -485,25 +490,55 @@
 
   var FICHA = null;            /* la ficha abierta, para Insights */
 
+  /*
+   * 7.0 · LA FICHA SE SIENTE AL INSTANTE (medido el 23/09: 1,1 s de servidor
+   * + ~2 s de transporte por ficha).
+   *   · adelantar(): la petición sale al apoyar el dedo en "Detalles"; cuando
+   *     la vista abre ya va en camino. Solo vale 20 s y solo para esa ficha,
+   *     así nunca se pinta una ficha vieja (p. ej. después de una adición).
+   *   · Mientras llega, la cabecera (foto, nombre, contrato, estado) se pinta
+   *     de una vez con la fila de la lista, que ya está en el teléfono.
+   */
+  var FICHAS = {};             /* id -> { p: promesa, t: cuando } (solo peticiones recién hechas) */
+
+  function adelantar(id) {
+    var k = K.norm(id), ya = FICHAS[k];
+    if (ya && Date.now() - ya.t < 20000) return ya.p;
+    var p = K.pedir('contratistaDetalle', { idContrato: id }, { ms: 60000 });
+    FICHAS[k] = { p: p, t: Date.now() };
+    p['catch'](function () { if (FICHAS[k] && FICHAS[k].p === p) delete FICHAS[k]; });
+    return p;
+  }
+
+  function filaDeLista(id) {
+    var k = K.norm(id);
+    return (TODAS || []).filter(function (x) { return K.norm(x.id) === k; })[0] || null;
+  }
+
   function detalle(sub) {
     var id = decodeURIComponent(String(sub || ''));
     var caja = K.nodo('<div class="kit-ancho vista ct-ficha"></div>');
     C.app.appendChild(caja);
     FICHA = null;
 
-    var p = K.pedir('contratistaDetalle', { idContrato: id });
-    K.piezas.esqueletos.mientras(caja, p, { forma: 'texto', cuantos: 8 })
+    var p = adelantar(id);
+    delete FICHAS[K.norm(id)];          /* consumida: la próxima vez se pide fresca */
+    var f = filaDeLista(id);
+    var resto = caja;
+    if (f) {
+      caja.appendChild(cabecera(f));
+      resto = K.nodo('<div class="ct-ficha__resto"></div>');
+      caja.appendChild(resto);
+    }
+    K.piezas.esqueletos.mientras(resto, p, { forma: 'texto', cuantos: f ? 6 : 8 })
       .then(function (d) { FICHA = d; pintarFicha(caja, d); })
       ['catch'](function (e) {
-        caja.appendChild(C.errorCaja(e, function () { C.app.innerHTML = ''; detalle(sub); }));
+        resto.appendChild(C.errorCaja(e, function () { C.app.innerHTML = ''; detalle(sub); }));
       });
   }
 
-  function pintarFicha(caja, d) {
-    caja.innerHTML = '';
-    var c = d.contrato || {}, p = d.datos || {};
-    var f = pulir(K.piezas.listas.expandir({ campos: d.campos, filas: [d.fila] })[0]);
-
+  /** La cabecera de la ficha. La usan la ficha completa y el pintado previo. */
+  function cabecera(f, conGestion) {
     var cab = K.nodo('<section class="kit-tarjeta ct-ficha__cab"></section>');
     if (K.piezas.personas) cab.appendChild(K.piezas.personas.avatar(f.nombre, { tam: 76, foto: f.img || '' }));
     var marcas = '<span class="kit-pastilla ' + (f.estado === 'ACTIVO' ? 'kit-pastilla--ok' : 'kit-pastilla--aviso') + '" aria-pressed="true">' + K.esc(f.estado) + '</span>';
@@ -519,9 +554,19 @@
       '</div>'
     ));
     cab.appendChild(acciones(f, true));
-    var gF = gestion(f);
-    if (gF) cab.appendChild(gF);
-    caja.appendChild(cab);
+    if (conGestion) {
+      var gF = gestion(f);
+      if (gF) cab.appendChild(gF);
+    }
+    return cab;
+  }
+
+  function pintarFicha(caja, d) {
+    caja.innerHTML = '';
+    var c = d.contrato || {}, p = d.datos || {};
+    var f = pulir(K.piezas.listas.expandir({ campos: d.campos, filas: [d.fila] })[0]);
+
+    caja.appendChild(cabecera(f, true));
 
     if (c.supervisor && K.piezas.personas) {
       var sup = K.nodo('<section class="kit-tarjeta grupo grupo--persona"><h3 class="grupo__t">Lo supervisa</h3></section>');
