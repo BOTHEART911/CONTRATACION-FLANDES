@@ -2424,3 +2424,56 @@
    esqueleto entraba como UNA celda de la rejilla de 3 columnas y el aviso
    se centraba dentro de esa celda. Ahora el esqueleto ocupa la fila entera. */
 .kit-rejilla > .kit-esq, .of-muro > .kit-esq { grid-column: 1 / -1; }
+
+/* ============================================================
+   10.2 · CARGA MASIVA y CESIÓN PARTIDA (mismo bloque en CONTRATACION y ADMIN)
+   Todo con los tokens del kit: el modo oscuro sale solo.
+   ============================================================ */
+.ct-masiva { margin-left: 6px; }
+.ms-paso { display: flex; flex-direction: column; gap: 12px; }
+.ms-plantilla { align-self: flex-start; }
+.ms-zona {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 150px; padding: 18px; text-align: center; cursor: pointer;
+  border: 2px dashed rgba(var(--k-marca-rgb), .35); border-radius: var(--k-r-lg);
+  background: rgba(var(--k-marca-rgb), .04); color: var(--k-tinta-2);
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.ms-zona:hover, .ms-zona:focus-visible { border-color: var(--k-marca); background: rgba(var(--k-marca-rgb), .08); outline: none; }
+.ms-zona--sobre { border-color: var(--k-marca); background: rgba(var(--k-marca-rgb), .12); transform: scale(.99); }
+.ms-zona__ico { color: var(--k-marca); }
+:root[data-tema="oscuro"] .ms-zona__ico { color: var(--k-marca-clara); }
+.ms-zona b { font: 700 .95rem/1.3 var(--k-fuente); color: var(--k-tinta); }
+.ms-zona small { font: 500 .78rem/1.3 var(--k-fuente); color: var(--k-apagado); }
+.ms-archivo { margin: 0; font: 600 .82rem/1.3 var(--k-fuente); color: var(--k-tinta-2); overflow-wrap: anywhere; }
+.ms-res { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.ms-cifras { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ms-ok b { color: var(--k-ok) !important; }
+.ms-mal b { color: var(--k-malo) !important; }
+.ms-lista { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.ms-f { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-left: 4px solid var(--k-linea); }
+.ms-f--ok { border-left-color: var(--k-ok); }
+.ms-f--mal { border-left-color: var(--k-malo); }
+.ms-f__ico { flex: none; margin-top: 2px; }
+.ms-f--ok .ms-f__ico { color: var(--k-ok); }
+.ms-f--mal .ms-f__ico { color: var(--k-malo); }
+.ms-f__txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ms-f__txt b { font: 700 .88rem/1.3 var(--k-fuente); color: var(--k-tinta); }
+.ms-f__txt small { font: 500 .74rem/1.3 var(--k-fuente); color: var(--k-apagado); }
+.ms-f__txt p { margin: 0; font: 500 .8rem/1.4 var(--k-fuente); color: var(--k-tinta-2); overflow-wrap: anywhere; }
+.ms-f--mal .ms-f__txt p { color: var(--k-malo); }
+.ms-f__ver { align-self: flex-start; margin-top: 4px; padding: 4px 10px; font-size: .78rem; }
+
+.gs-particion { display: flex; flex-direction: column; gap: 10px; }
+.gs-partes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.gs-parte { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--k-linea); border-radius: var(--k-r-md); background: var(--k-papel-2); }
+.gs-parte--nuevo { border-color: rgba(var(--k-marca-rgb), .45); }
+.gs-parte h4 { margin: 0; font: 700 .86rem/1.3 var(--k-fuente); color: var(--k-tinta); }
+.gs-parte__p { margin: 0; font: 600 .78rem/1.3 var(--k-fuente); color: var(--k-apagado); }
+.gs-parte__valor { font-weight: 800; color: var(--k-marca); }
+:root[data-tema="oscuro"] .gs-parte__valor { color: var(--k-marca-clara); }
+.gs-mal { color: var(--k-malo); }
+/* 10.2 · el acceso con icono del kit (no hay imagen de Excel en ALCALDIA-MEDIOS) */
+.acceso__img--icono { display: inline-flex; align-items: center; justify-content: center; color: var(--k-marca); }
+.acceso__img--icono svg { width: 30px; height: 30px; }
+:root[data-tema="oscuro"] .acceso__img--icono { color: var(--k-marca-clara); }

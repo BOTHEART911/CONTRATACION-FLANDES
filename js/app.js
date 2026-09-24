@@ -144,6 +144,8 @@
     if (window.GESTION) {
       window.GESTION.configurar({ app: app, puede: puede, irA: irA, errorCaja: errorCaja });
     }
+    /* 10.2 · carga masiva (archivo compartido con ADMIN-FLANDES) */
+    if (window.MASIVA) window.MASIVA.configurar({ app: app, puede: puede, irA: irA, errorCaja: errorCaja });
 
     if (window.REVISION) {
       window.REVISION.configurar({
@@ -260,6 +262,7 @@
     cesion: function (sub) { window.GESTION.cesion(sub); },
     suspension: function (sub) { window.GESTION.suspension(sub); },
     editar: function (sub) { window.GESTION.editar(sub); },   /* 5.5 */
+    masiva: function () { window.MASIVA.vista(); },            /* 10.2 */
     /* 5.3 */
     revisar: function () { window.REVISION.lista(); },
     cuenta: function (sub) { window.REVISION.detalle(sub); },
@@ -278,6 +281,7 @@
     cesion: 'CESIÓN',
     suspension: 'SUSPENSIÓN',
     editar: 'EDITAR CONTRATO',
+    masiva: 'CARGA MASIVA',
     revisar: 'REVISAR CUENTAS',
     cuenta: 'REVISIÓN DE CUENTA',
     requerimientos: 'REQUERIMIENTOS',
@@ -289,7 +293,7 @@
      a exigir en cada llamada: esto solo evita pintar lo que no se puede. */
   var PERMISO = {
     contratistas: 'contratistas', contratista: 'contratistas',
-    agregar: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension', editar: 'editarContratista',
+    agregar: 'agregarContratista', masiva: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension', editar: 'editarContratista',
     revisar: 'revisarCuentas', cuenta: 'revisarCuentas',
     requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte'
   };
@@ -314,7 +318,7 @@
     var resto = partes.slice(1).join('/');
     K.piezas.banner.atras(v === 'inicio' ? null : function () {
       if (v === 'adicion' || v === 'cesion' || v === 'suspension' || v === 'editar') irA('contratista/' + resto);
-      else if (v === 'contratista' || v === 'agregar') irA('contratistas');
+      else if (v === 'contratista' || v === 'agregar' || v === 'masiva') irA('contratistas');
       else if (v === 'cuenta') irA('revisar');
       else irA('inicio');
     });
@@ -366,7 +370,10 @@
         /* 5.3: la imagen era un código QR (contratista_2.webp); esta es una
            ficha de persona con lápiz y visto bueno: registrar a alguien */
         acceso('AGREGAR CONTRATISTA', 'Registra un contrato: primero se valida el documento, después lo demás',
-          'img/datos_de_procesos.webp', function () { irA('agregar'); })
+          'img/datos_de_procesos.webp', function () { irA('agregar'); }),
+        /* 10.2 · no hay imagen de Excel en ALCALDIA-MEDIOS: va el icono del kit */
+        accesoIcono('CARGA MASIVA', 'Varios contratos de una vez con la plantilla de Excel: se revisan antes de registrar',
+          'hoja', function () { irA('masiva'); })
       ] : []));
     }
 
@@ -481,6 +488,21 @@
       caja.appendChild(barras);
     }
     destino.appendChild(caja);
+  }
+
+  /** 10.2 · Sin imagen en ALCALDIA-MEDIOS para la acción: el icono del kit, del mismo tamaño. */
+  function accesoIcono(titulo, texto, icono, al) {
+    var b = K.nodo(
+      '<button type="button" class="kit-tarjeta acceso">' +
+      '  <span class="acceso__img acceso__img--icono" aria-hidden="true">' + K.icono(icono, 40) + '</span>' +
+      '  <span class="acceso__txt">' +
+      '    <span class="acceso__t">' + K.esc(titulo) + '</span>' +
+      '    <span class="acceso__p">' + K.esc(texto) + '</span>' +
+      '  </span>' +
+      '</button>'
+    );
+    b.addEventListener('click', function () { K.vibrar(8); al(); });
+    return b;
   }
 
   function acceso(titulo, texto, medio, al, cuenta) {

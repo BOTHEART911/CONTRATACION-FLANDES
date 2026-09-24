@@ -32,6 +32,14 @@
        suspensión se ve también como marca en la tarjeta.
      · Botón Agregar contratista en la cabecera de la lista.
 
+   10.2 (archivo COMPARTIDO: el mismo en CONTRATACION-FLANDES y ADMIN-FLANDES)
+     · Botón CARGA MASIVA junto a Agregar (misma regla de permiso).
+     · Ganchos para ADMIN (window.GESTION_EXTRA): más botones en la tarjeta
+       y la ficha (novedades, editar datos, cuentas) y secciones propias en
+       la ficha. En CONTRATACION no existe y todo sigue igual.
+     · Si la ficha llega ya pedida (una escritura devolvió 'detalle'), se
+       pinta sin volver a viajar (FICHAS listas).
+
    LA LLAVE es el ID CONTRATO (documento-contrato). EDILBERTO sale tres
    veces, una por contrato, y cada tarjeta abre SU ficha.
    ============================================================ */
@@ -209,6 +217,10 @@
       var bAg = K.nodo('<button type="button" class="kit-btn kit-btn--marca ct-agregar">' + K.icono('mas', 16) + ' Agregar contratista</button>');
       bAg.addEventListener('click', function () { K.vibrar(8); C.irA('agregar'); });
       caja.firstChild.appendChild(bAg);
+      /* 10.2 · varios contratos de una vez con la plantilla de Excel */
+      var bMa = K.nodo('<button type="button" class="kit-btn kit-btn--plano ct-agregar ct-masiva">' + K.icono('hoja', 16) + ' Carga masiva</button>');
+      bMa.addEventListener('click', function () { K.vibrar(8); C.irA('masiva'); });
+      caja.firstChild.appendChild(bMa);
     }
 
     var barra = K.nodo('<div class="ct-barra-bus"></div>');
@@ -441,13 +453,17 @@
    * WhatsApp / Drive porque cambian el contrato: no se tocan sin querer.
    */
   function gestion(f) {
-    if (f.estado !== 'ACTIVO' || !C.puede) return null;
-    var items = [
+    if (!C.puede) return null;
+    var X = window.GESTION_EXTRA;
+    if (f.estado !== 'ACTIVO' && !(X && X.inactivos)) return null;
+    var items = f.estado !== 'ACTIVO' ? [] : [
       ['editar', 'lapiz', 'Editar', 'editarContratista'],   /* 5.5: corrección u OTROSÍ */
       ['adicion', 'mas', 'Adición'],
       ['cesion', 'persona', 'Cesión'],
       ['suspension', 'pausa', f.susp ? 'Suspensión ✓' : 'Suspensión']
     ].filter(function (x) { return C.puede(x[3] || x[0]); });
+    /* 10.2 · ADMIN suma sus botones (novedades, datos, cuentas) */
+    if (X && X.items) items = X.items(f, items);
     if (!items.length) return null;
     var a = K.nodo('<div class="ct-gest" role="group" aria-label="Gestionar el contrato"></div>');
     items.forEach(function (x) {
@@ -500,6 +516,12 @@
    *     de una vez con la fila de la lista, que ya está en el teléfono.
    */
   var FICHAS = {};             /* id -> { p: promesa, t: cuando } (solo peticiones recién hechas) */
+
+  /** 10.2 · una escritura que ya trae la ficha nueva la deja lista: abrirla no viaja. */
+  function ficha(d) {
+    if (!d || !d.idContrato) return;
+    FICHAS[K.norm(d.idContrato)] = { p: Promise.resolve(d), t: Date.now() };
+  }
 
   function adelantar(id) {
     var k = K.norm(id), ya = FICHAS[k];
@@ -639,6 +661,11 @@
       caja.appendChild(g);
     }
 
+    /* 10.2 · ADMIN: cuentas con su estado, canal, novedades y editar datos */
+    if (window.GESTION_EXTRA && window.GESTION_EXTRA.ficha) {
+      try { window.GESTION_EXTRA.ficha(caja, d, f); } catch (e) { try { console.error(e); } catch (e2) {} }
+    }
+
     if (!c.yaDiligenciado) {
       caja.insertBefore(K.nodo('<p class="kit-tarjeta formulario__nota formulario__nota--fuerte ct-aviso">' +
         'Al contratista le faltan datos obligatorios del contrato (proceso, fechas del acta, RP o las preguntas del RUT). ' +
@@ -727,7 +754,7 @@
 
   window.CONTRATISTAS = {
     configurar: function (o) { C = o || {}; },
-    recibir: recibir, cargar: cargar, todas: todas, olvidar: olvidar,
+    recibir: recibir, cargar: cargar, todas: todas, olvidar: olvidar, ficha: ficha,
     lista: lista, detalle: detalle,
     /* para la ayuda (Insights) */
     _visibles: function () { return VISTA || filtradas(); },

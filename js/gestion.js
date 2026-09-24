@@ -9,6 +9,11 @@
      #/cesion/<id>          ceder el contrato a otra persona
      #/suspension/<id>      registrar o cambiar la suspensión
 
+   10.2 · ARCHIVO COMPARTIDO: el mismo en CONTRATACION-FLANDES y en
+   ADMIN-FLANDES (ADMIN llega a las mismas funciones del CORE por sus
+   rutas con su nombre). La CESIÓN ahora crea la fila del cesionario y
+   parte plazo, valor e informes entre los dos.
+
    La app vieja (referencia, no copia) tenía todo en formularios de 20
    campos que se enviaban para descubrir el error al final. Aquí:
      · el documento se valida ANTES de mostrar el resto del formulario;
@@ -265,6 +270,8 @@
       }).then(function (r) {
         K.ocupado = false;
         if (r && r.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(r.contratistas);
+        /* 10.2 · ADMIN apunta la bitácora que trae la respuesta */
+        if (r && window.GESTION_EXTRA && window.GESTION_EXTRA.alGuardar) window.GESTION_EXTRA.alGuardar(r);
         return r;
       }, function (e) { K.ocupado = false; mal(e); return null; });
     });
@@ -686,14 +693,46 @@
     });
   }
 
-  /* ══════════════ CESIÓN ══════════════ */
+  /* ══════════════ CESIÓN (10.2: fila nueva y periodos partidos) ══════════════
+     Decidido por Oss (24/09): el cesionario entra como contratista NUEVO,
+     con su propia fila, y el plazo, el valor y los informes se parten
+     entre los dos. La propuesta sale de las cuentas reales del cedente
+     (lo ya cobrado es suyo) y se puede ajustar antes de guardar; el CORE
+     la vuelve a calcular y valida lo mismo. */
+
+  /** La misma cuenta de FC52_cesionPropuesta_ del CORE. */
+  function particion(c, inicioCes) {
+    var p = c.particion || {}, out = {
+      cobrado: p.cobrado || 0, hechas: p.cuentasHechas || 0, total: p.totalInformes || 0, valor: p.valorTotal || c.valorFinal || 0,
+      infCed: p.cuentasHechas || 0, infCes: Math.max(1, (p.totalInformes || 0) - (p.cuentasHechas || 0)), valCed: p.cobrado || 0, partido: false
+    };
+    var ini = fechaDe(c.fechaInicio), dI = fechaDe(inicioCes);
+    if (ini && dI) {
+      var finCed = new Date(dI.getFullYear(), dI.getMonth(), dI.getDate() - 1);
+      var pl = plazoEntre(ini, finCed);
+      var cuota = out.total ? out.valor / out.total : 0;
+      out.infCed = Math.max(out.hechas, pl.meses + (pl.dias > 0 ? 1 : 0));
+      out.partido = pl.dias > 0;
+      out.infCes = Math.max(1, out.total - pl.meses);
+      out.valCed = Math.max(out.cobrado, Math.round(cuota * (pl.meses + Math.min(pl.dias, 30) / 30)));
+      if (out.valCed >= out.valor) out.valCed = out.cobrado;
+      out.finCed = dmy(finCed);
+    }
+    out.valCes = out.valor - out.valCed;
+    return out;
+  }
 
   function cesion(sub) {
-    conContrato(sub, 'persona', 'CESIÓN', 'El contrato pasa a otra persona. Sigue siendo el mismo contrato: número, CDP, RP, obligaciones y tramo.', function (cuerpo, c) {
+    conContrato(sub, 'persona', 'CESIÓN', 'Otra persona sigue con el contrato. Entra como contratista nuevo, con su fila, y el plazo, el valor y los informes se parten entre los dos.', function (cuerpo, c) {
       if ((c.abiertas || []).length) {
         cuerpo.appendChild(K.nodo('<p class="kit-tarjeta formulario__nota formulario__nota--fuerte ct-aviso">Todavía no se puede ceder: ' +
           c.abiertas.map(function (a) { return 'la cuenta ' + a.informe + ' está en ' + K.esc(a.estado); }).join(', ') +
           '. Primero tiene que llegar al plan de pagos (CERRADA); si no, quedaría entre dos personas.</p>'));
+        return;
+      }
+      if (!c.fechaInicio || !c.fechaFinal) {
+        cuerpo.appendChild(K.nodo('<p class="kit-tarjeta formulario__nota formulario__nota--fuerte ct-aviso">El contrato no tiene las fechas del acta de inicio: sin ellas no se puede partir el plazo. ' +
+          'El contratista las diligencia en su app (DATOS DEL CONTRATO).</p>'));
         return;
       }
       var f = K.nodo('<form class="kit-tarjeta formulario" novalidate></form>');
@@ -711,11 +750,52 @@
       f.appendChild(K.nodo('<h3 class="grupo__t">Las fechas</h3>'));
       var fila2 = K.nodo('<div class="campo-fila"></div>');
       campoFecha(fila2, D, 'fechaCesion', 'Fecha de la cesión', '', { anioFijo: c.vigencia });
-      campoFecha(fila2, D, 'inicioCesionario', 'Inicio del cesionario', 'Con ella se certifica su tiempo real.', { anioFijo: c.vigencia });
+      campoFecha(fila2, D, 'inicioCesionario', 'Inicio del cesionario', 'El cedente termina el día anterior.', { anioFijo: c.vigencia, alCambiar: function () { proponer(); } });
       f.appendChild(fila2);
-      f.appendChild(K.nodo('<p class="formulario__nota">Queda escrito quién cedió (<b>' + K.esc(nombre(c.nombre)) + '</b>) para su certificación. ' +
-        'Sus cuentas se quedan con su nombre; el cesionario sigue con el informe ' + ((c.ultimaCuenta ? c.ultimaCuenta.informe : 0) + 1) + '. ' +
-        'Los datos bancarios y del RUT <b>no</b> pasan: el cesionario diligencia los suyos y, en su primera cuenta, el <b>RP de la cesión</b>.</p>'));
+
+      /* ---- la partición ---- */
+      f.appendChild(K.nodo('<h3 class="grupo__t">Cómo se parte el contrato</h3>'));
+      var zP = K.nodo('<div class="gs-particion"></div>');
+      f.appendChild(zP);
+      var P = null;
+      function proponer() {
+        zP.innerHTML = '';
+        if (!D.inicioCesionario) {
+          zP.appendChild(K.nodo('<p class="formulario__nota">Elige el inicio del cesionario y aquí sale la propuesta: lo ya cobrado (' + K.esc(K.pesos(particion(c).cobrado)) +
+            ', ' + particion(c).hechas + ' cuentas) es del cedente.</p>'));
+          return;
+        }
+        P = particion(c, D.inicioCesionario);
+        D.informesCedente = String(P.infCed); D.informesCesionario = String(P.infCes); D.valorCedente = String(P.valCed);
+        var dos = K.nodo('<div class="gs-partes"></div>');
+        var ced = K.nodo('<section class="gs-parte"><h4>Cedente · ' + K.esc(nombre(c.nombre)) + '</h4><p class="gs-parte__p">' +
+          K.esc(c.fechaInicio) + ' → ' + K.esc(P.finCed || '') + '</p></section>');
+        var ces = K.nodo('<section class="gs-parte gs-parte--nuevo"><h4>Cesionario</h4><p class="gs-parte__p">' +
+          K.esc(D.inicioCesionario) + ' → ' + K.esc(c.fechaFinal) + '</p></section>');
+        /* lo que repinta repintarCes va ANTES de los campos: campoPesos lo llama al nacer */
+        var vCes = K.nodo('<div class="dato"><span class="dato__e">Valor del cesionario</span><span class="dato__v gs-parte__valor"></span></div>');
+        var nota = K.nodo('<p class="formulario__nota"></p>');
+        campoTexto(ced, D, 'informesCedente', 'Informes del cedente', 'Ya radicó ' + P.hechas + (P.partido ? '; el mes partido le deja una cuenta más.' : '.'), { numerico: 2, alCambiar: repintarCes });
+        campoPesos(ced, D, 'valorCedente', 'Valor del cedente', 'Mínimo lo ya cobrado: ' + K.pesos(P.cobrado) + '.', { alCambiar: repintarCes });
+        campoTexto(ces, D, 'informesCesionario', 'Informes del cesionario', 'Empieza en su informe 1.', { numerico: 2 });
+        ces.appendChild(vCes);
+        dos.appendChild(ced); dos.appendChild(ces);
+        zP.appendChild(dos);
+        zP.appendChild(nota);
+        function repintarCes() {
+          var vc = K.aNumero(D.valorCedente);
+          var rest = P.valor - vc;
+          vCes.querySelector('.gs-parte__valor').textContent = rest > 0 ? K.pesos(rest) : 'No queda valor';
+          nota.innerHTML = 'Contrato de <b>' + K.esc(K.pesos(P.valor)) + '</b> y <b>' + P.total + '</b> informes. ' +
+            (vc < P.cobrado ? '<b class="gs-mal">El cedente ya cobró ' + K.esc(K.pesos(P.cobrado)) + ': su parte no puede ser menor.</b>' : 'Las dos partes suman el valor del contrato.');
+        }
+        repintarCes();
+        if (K.piezas.fechas) K.piezas.fechas.montar(zP);
+      }
+      proponer();
+
+      f.appendChild(K.nodo('<p class="formulario__nota">Queda escrito quién cedió (<b>' + K.esc(nombre(c.nombre)) + '</b>). Sus cuentas se quedan con él y su contrato termina el día antes del cesionario. ' +
+        'El cesionario entra con su <b>propia fila</b>: empieza en su informe 1, diligencia sus datos bancarios y del RUT y, en su primera cuenta, el <b>RP de la cesión</b>.</p>'));
 
       /* si el cesionario ya estuvo en la Alcaldía, se trae su nombre */
       f.querySelector('input').addEventListener('blur', function () {
@@ -743,25 +823,34 @@
         if (!/^\d{10}$/.test(D.telefono || '') && !(V && V.tipo !== 'NUEVO')) falta.push('el celular');
         if (!D.fechaCesion) falta.push('la fecha de la cesión');
         if (!D.inicioCesionario) falta.push('el inicio del cesionario');
+        var fc = fechaDe(D.fechaCesion), fi = fechaDe(D.inicioCesionario);
+        if (fc && fi && fi < fc) falta.push('un inicio del cesionario que no sea antes de la cesión');
+        var vCed = K.aNumero(D.valorCedente), vCes = P ? P.valor - vCed : 0;
+        if (P && vCed < P.cobrado) falta.push('un valor del cedente de al menos ' + K.pesos(P.cobrado));
+        if (P && vCes <= 0) falta.push('un valor que le deje algo al cesionario');
+        if (P && !(+D.informesCesionario > 0)) falta.push('los informes del cesionario');
         if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 6000); return; }
         K.piezas.confirmar.preguntar({
           titulo: '¿Ceder el contrato ' + c.contrato + '?',
           lista: [['Cede', nombre(c.nombre)], ['Recibe', nombre(D.nombre)], ['Documento', D.documento],
-                  ['Fecha de cesión', D.fechaCesion], ['Empieza', D.inicioCesionario]],
-          nota: 'El cedente deja de poder entrar con este contrato. No se deshace desde la app.',
+                  ['Fecha de cesión', D.fechaCesion], ['Cedente', D.informesCedente + ' informes · ' + K.pesos(vCed) + ' · hasta ' + (P.finCed || '')],
+                  ['Cesionario', D.informesCesionario + ' informes · ' + K.pesos(vCes) + ' · desde ' + D.inicioCesionario]],
+          nota: 'Se crea la fila del cesionario y el plazo del cedente termina el ' + (P.finCed || '') + '. No se deshace desde la app.',
           si: 'Sí, ceder', peligro: true
         }).then(function (ok) {
           if (!ok) return;
           K.ocupado = true;
           K.piezas.guardado.mientras(K.pedir('cesion', {
             idContrato: c.idContrato, documento: D.documento, nombre: D.nombre, telefono: D.telefono || '',
-            correo: D.correo || '', fechaCesion: D.fechaCesion, inicioCesionario: D.inicioCesionario
-          }, { ms: 90000 }), { titulo: 'Cediendo el contrato', pasos: ['Revisando las cuentas', 'Pasando el contrato', 'Creando su carpeta'] })
+            correo: D.correo || '', fechaCesion: D.fechaCesion, inicioCesionario: D.inicioCesionario,
+            informesCedente: D.informesCedente, valorCedente: String(vCed), informesCesionario: D.informesCesionario
+          }, { ms: 90000 }), { titulo: 'Cediendo el contrato', pasos: ['Revisando las cuentas', 'Partiendo el plazo y el valor', 'Creando la fila y la carpeta del cesionario'] })
             .then(function (r) {
               K.ocupado = false;
               if (r.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(r.contratistas);
+              if (window.GESTION_EXTRA && window.GESTION_EXTRA.alGuardar) window.GESTION_EXTRA.alGuardar(r);
               avisoEnvio(r);
-              K.aviso('Contrato cedido a ' + nombre(r.cesionario) + '.', 'ok', 5000);
+              K.aviso('Contrato cedido a ' + nombre(r.cesionario) + ': entra con su propia fila.', 'ok', 6000);
               C.irA('contratista/' + encodeURIComponent(r.idContrato));
             }, function (e) { K.ocupado = false; mal(e); });
         });
@@ -869,7 +958,9 @@
     quien.appendChild(cab);
     cuerpo.appendChild(quien);
 
-    if (e.estado !== 'ACTIVO' || !e.puede) {
+    /* 10.2 · ADMIN edita también contratos inactivos (el CORE lo vuelve a exigir) */
+    var puedeInactivo = !!(window.GESTION_EXTRA && window.GESTION_EXTRA.inactivos);
+    if ((e.estado !== 'ACTIVO' && !puedeInactivo) || !e.puede) {
       cuerpo.appendChild(K.nodo('<p class="kit-tarjeta formulario__nota formulario__nota--fuerte ct-aviso">' +
         (e.estado !== 'ACTIVO' ? 'Este contrato está ' + K.esc(e.estado) + ': solo se editan contratos ACTIVOS.' : 'Tu rol no puede editar contratos.') + '</p>'));
       pintarHistorial(cuerpo, e.historial);
@@ -1030,6 +1121,6 @@
   window.GESTION = {
     configurar: configurar, agregar: agregar, adicion: adicion, cesion: cesion, suspension: suspension, editar: editar,
     /* para las pruebas y la ayuda */
-    _letras: letras, _partir: partirObligaciones, _plazo: plazoEntre, _ultima: function () { return ULTIMA; }, _cambios: cambiosDe
+    _letras: letras, _partir: partirObligaciones, _particion: particion, _plazo: plazoEntre, _ultima: function () { return ULTIMA; }, _cambios: cambiosDe
   };
 }());

@@ -20,6 +20,7 @@ Publicada en GitHub Pages: https://botheart911.github.io/CONTRATACION-FLANDES/
 - COMUNICADOS (5.4): publicar con documentos (Office se ve como PDF en el visor), aviso a los teléfonos, retirar y volver a publicar.
 - REPORTE (5.4): cuentas aprobadas y devueltas por rango, con quién revisó de verdad (nunca el supervisor); PDF membretado y Excel.
 - EDITAR CONTRATO (5.5): corregir secretaría, supervisor, tipo, fecha, valor inicial, CDP, objeto y obligaciones. Con la casilla OTROSÍ, al contratista le llega el aviso de adjuntar el OTROSÍ (SECOP II) en su próxima cuenta; sin ella es una corrección. Cada cambio queda con quién, qué y cuándo (historial en la misma vista).
+- 10.2 · CARGA MASIVA con la plantilla de Excel (`plantillas/`): revisar sin escribir y registrar lo que pasa. La CESIÓN ahora crea la fila del cesionario y parte plazo, valor e informes. `js/contratistas.js`, `js/gestion.js`, `js/masiva.js` y `js/ayuda-contratos.js` son los mismos archivos de ADMIN-FLANDES.
 - Foto de perfil (la misma en las siete apps), Insights en todas las vistas, PWA instalable y modo oscuro.
 
 ## Estructura
