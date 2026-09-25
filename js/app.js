@@ -194,7 +194,7 @@
    * llamada: esconder un botón no es la seguridad, es la cortesía. */
   function puede(vista) {
     var r = K.norm((YO && YO.rol) || '');
-    if (r === 'DEV') return true;
+    if (r === 'DEV') return true;   /* DEV va siempre solo; con varios roles el CORE ya manda la unión de sus vistas */
     var v = (YO && YO.vistas) || [];
     for (var i = 0; i < v.length; i++) if (K.norm(v[i]) === K.norm(vista)) return true;
     return false;
@@ -236,12 +236,12 @@
     if (K.piezas.cielo) K.piezas.cielo.soloFondo(document.querySelector('.kit-banner'));
   }
 
+  /* 25/09: una persona puede tener varios roles ("REVISOR,CREADOR"): se muestran los dos */
   function rolLegible(r) {
-    var n = K.norm(r || '');
-    if (n === 'CREADOR') return 'CREADOR · Contratación';
-    if (n === 'REVISOR') return 'REVISOR · Contratación';
-    if (n === 'DEV') return 'DEV · Desarrollo';
-    return r || 'Contratación';
+    var l = String(r || '').split(/[,+\/]/).map(function (x) { return K.norm(x); }).filter(Boolean);
+    if (l.indexOf('DEV') >= 0) return 'DEV · Desarrollo';
+    if (!l.length) return 'Contratación';
+    return l.join(' · ') + ' · Contratación';
   }
 
   function salir() {
