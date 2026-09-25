@@ -112,7 +112,9 @@
 
   function pasaEstado(f) {
     if (F.estado === 'ACTIVO') return f.estado === 'ACTIVO';
-    if (F.estado === 'INACTIVO') return f.estado !== 'ACTIVO';
+    /* 10.3 · NOTIFICADO: su última cuenta ya se pagó; solo descarga la certificación hasta el día de cierre */
+    if (F.estado === 'NOTIFICADO') return f.estado === 'NOTIFICADO';
+    if (F.estado === 'INACTIVO') return f.estado !== 'ACTIVO' && f.estado !== 'NOTIFICADO';
     return true;
   }
   function pasaExtras(f) {
@@ -171,7 +173,7 @@
 
   function textoFiltros() {
     var t = [];
-    t.push(F.estado === 'ACTIVO' ? 'activos' : F.estado === 'INACTIVO' ? 'inactivos' : 'todos los estados');
+    t.push(F.estado === 'ACTIVO' ? 'activos' : F.estado === 'NOTIFICADO' ? 'notificados' : F.estado === 'INACTIVO' ? 'inactivos' : 'todos los estados');
     if (F.extras.indexOf('adic') >= 0) t.push('adicionados');
     if (F.extras.indexOf('cedido') >= 0) t.push('cedidos');
     if (F.sec) t.push(titulo(F.sec));
@@ -266,6 +268,7 @@
         multiple: false,
         opciones: [
           { valor: 'ACTIVO', texto: 'Activos', tono: 'ok' },
+          { valor: 'NOTIFICADO', texto: 'Notificados' },
           { valor: 'INACTIVO', texto: 'Inactivos', tono: 'aviso' },
           { valor: '', texto: 'Todos' },
           { valor: '+adic', texto: 'Adicionados' },
@@ -308,9 +311,9 @@
     function repintarPastillas() {
       /* estado: conteos sobre todo lo demás */
       var baseE = filtradas({ estado: true, extras: true });
-      var cE = { ACTIVO: 0, INACTIVO: 0, '': baseE.length, '+adic': 0, '+cedido': 0 };
+      var cE = { ACTIVO: 0, NOTIFICADO: 0, INACTIVO: 0, '': baseE.length, '+adic': 0, '+cedido': 0 };
       baseE.forEach(function (f) {
-        if (f.estado === 'ACTIVO') cE.ACTIVO++; else cE.INACTIVO++;
+        if (f.estado === 'ACTIVO') cE.ACTIVO++; else if (f.estado === 'NOTIFICADO') cE.NOTIFICADO++; else cE.INACTIVO++;
         if (pasaEstado(f) && f.adic) cE['+adic']++;
         if (pasaEstado(f) && f.cedido) cE['+cedido']++;
       });
