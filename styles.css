@@ -2392,6 +2392,10 @@
 .rp-barra__v i { height: 100%; }
 .rp-a { background: var(--k-ok); }
 .rp-d { background: var(--k-malo); }
+/* 25/09 · la barra general (.ct-barra__v i) pintaba de verde también las devueltas */
+.rp-barra__v i.rp-a { background: var(--k-ok); border-radius: 0; }
+.rp-barra__v i.rp-d { background: var(--k-malo); border-radius: 0; }
+.rp-barra__v { overflow: hidden; }
 .rp-leyenda { margin: 0; font: 500 .72rem/1 var(--k-fuente); color: var(--k-apagado); display: flex; gap: 6px; align-items: center; }
 .rp-leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; }
 .rp-origen { margin: 2px 0 0; }
@@ -2477,3 +2481,6 @@
 .acceso__img--icono { display: inline-flex; align-items: center; justify-content: center; color: var(--k-marca); }
 .acceso__img--icono svg { width: 30px; height: 30px; }
 :root[data-tema="oscuro"] .acceso__img--icono { color: var(--k-marca-clara); }
+
+/* 25/09 · el resumen del inicio va debajo de su título (la hoja base lo sube sobre la franja del contratista) */
+.bloque > .resumen { margin-top: 0; }
