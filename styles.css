@@ -2484,3 +2484,40 @@
 
 /* 25/09 · el resumen del inicio va debajo de su título (la hoja base lo sube sobre la franja del contratista) */
 .bloque > .resumen { margin-top: 0; }
+
+/* ══════════════ 26/09 · SOLICITUDES DE LOS CONTRATISTAS (solicitudes.js) ══════════════ */
+.sb-acciones { display: flex; justify-content: flex-end; gap: 8px; margin: 0 0 10px; }
+.sb-t--pendiente { border-left: 4px solid var(--k-aviso); }
+.sb-t--respondida { border-left: 4px solid var(--k-ok); }
+.sb-t--gestion { border-left: 4px solid var(--k-marca-clara); }
+.sb-est--gest { background: rgba(var(--k-marca-rgb), .12); color: var(--k-marca); border-color: transparent; }
+:root[data-tema="oscuro"] .sb-est--gest { color: var(--k-marca-clara); }
+.sb-tipo { font-weight: 700; }
+.sb-marca--entrada { background: var(--k-aviso-fondo); color: var(--k-aviso); border-color: transparent; }
+.sb-contacto a { color: var(--k-marca); font-weight: 700; text-decoration: none; }
+:root[data-tema="oscuro"] .sb-contacto a { color: var(--k-marca-clara); }
+.sb-docs { display: flex; flex-wrap: wrap; gap: 6px; }
+.sb-doc { font-size: .78rem; padding: 6px 10px; }
+.sb-resp { padding: 10px 12px; border-radius: var(--k-r-md); background: var(--k-ok-fondo); }
+.sb-resp__t { margin: 0 0 4px; display: flex; gap: 6px; align-items: center; font: 700 .78rem/1.3 var(--k-fuente); color: var(--k-ok); }
+.sb-resp__x { margin: 0; font: 400 .86rem/1.5 var(--k-fuente); color: var(--k-tinta); white-space: pre-line; overflow-wrap: anywhere; }
+.sb-gest { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid rgba(var(--k-marca-rgb), .35); display: flex; flex-direction: column; gap: 8px; }
+.sb-gest li { position: relative; }
+.sb-gest li::before { content: ''; position: absolute; left: -20px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--k-marca); box-shadow: 0 0 0 3px var(--k-papel); }
+.sb-gest__f { display: block; font: 600 .72rem/1.3 var(--k-fuente); color: var(--k-apagado); }
+.sb-gest p { margin: 2px 0 0; font: 400 .85rem/1.5 var(--k-fuente); color: var(--k-tinta); white-space: pre-line; overflow-wrap: anywhere; }
+.sb-borrar { margin-left: auto; padding-inline: 10px; }
+.sb-cita { margin: 0 0 10px; padding: 10px 12px; border-radius: var(--k-r-md); background: var(--k-papel-2); }
+.sb-cita__t { margin: 0 0 4px; font: 700 .8rem/1.3 var(--k-fuente); color: var(--k-apagado); }
+.sb-cita__x { margin: 0; font: 400 .86rem/1.5 var(--k-fuente); color: var(--k-tinta); white-space: pre-line; overflow-wrap: anywhere; max-height: 160px; overflow: auto; }
+.sb-elige { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.sb-elige__lista { display: flex; flex-direction: column; gap: 6px; }
+.sb-op { appearance: none; text-align: left; cursor: pointer; font: inherit; color: inherit; display: flex; flex-direction: column; gap: 2px;
+  padding: 9px 12px; border-radius: var(--k-r-md); border: 1px solid var(--k-linea); background: var(--k-papel); }
+.sb-op:hover, .sb-op:focus { border-color: var(--k-marca); outline: none; }
+.sb-op b { font: 700 .88rem/1.3 var(--k-fuente); }
+.sb-op small { font: 400 .74rem/1.3 var(--k-fuente); color: var(--k-apagado); }
+.sb-elegido { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: var(--k-r-md); background: rgba(var(--k-marca-rgb), .08); }
+.sb-elegido > span { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.sb-elegido b { font: 700 .88rem/1.3 var(--k-fuente); }
+.sb-elegido small { font: 400 .74rem/1.3 var(--k-fuente); color: var(--k-apagado); }

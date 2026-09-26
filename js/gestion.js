@@ -287,7 +287,8 @@
 
   /* ══════════════ AGREGAR ══════════════ */
 
-  function agregar() {
+  /* 26/09 · sub = documento que pidió acceso desde SOLICITUDES: llega ya escrito y validado */
+  function agregar(sub) {
     var caja = K.nodo('<div class="kit-ancho vista gs"></div>');
     C.app.appendChild(caja);
     cabecera(caja, 'mas', 'AGREGAR CONTRATISTA',
@@ -307,6 +308,12 @@
     var paso2 = K.nodo('<form class="kit-tarjeta formulario gs-paso" novalidate hidden></form>');
     caja.appendChild(paso2);
     K.piezas.creditos.montar(caja);
+    var docPedido = String(sub ? decodeURIComponent(sub) : '').replace(/\D/g, '');
+    if (/^\d{6,10}$/.test(docPedido)) {
+      D.documento = docPedido;
+      docInp.value = docPedido;
+      setTimeout(function () { bVal.click(); }, 0);
+    }
 
     function invalidar() {
       V = null;

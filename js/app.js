@@ -186,6 +186,9 @@
     if (window.REQS) window.REQS.configurar(cOf);
     if (window.COMUS) window.COMUS.configurar(cOf);
     if (window.REPORTE) window.REPORTE.configurar(cOf);
+    /* 26/09 · SOLICITUDES de los contratistas: el número del inicio sigue a la bandeja sin otro viaje */
+    if (window.SOLICITUDES) window.SOLICITUDES.configurar({ app: app, puede: puede, irA: irA, errorCaja: errorCaja,
+      alCambiar: function (n) { if (ARRANQUE) ARRANQUE.solicitudes = n; } });
 
     if (window.CONTRATISTAS) {
       window.CONTRATISTAS.configurar({
@@ -272,6 +275,7 @@
     if (window.REQS) window.REQS.olvidar();
     if (window.COMUS) window.COMUS.olvidar();
     if (window.REPORTE) window.REPORTE.olvidar();
+    if (window.SOLICITUDES) window.SOLICITUDES.olvidar();
     vistaInicio._reporte = false;
     K.piezas.sesion.salir();
     location.hash = '';
@@ -284,7 +288,7 @@
     contratistas: function (sub) { window.CONTRATISTAS.lista(sub); },
     contratista: function (sub) { window.CONTRATISTAS.detalle(sub); },
     /* 5.2 */
-    agregar: function () { window.GESTION.agregar(); },
+    agregar: function (sub) { window.GESTION.agregar(sub); },   /* 26/09 · sub = documento que pidió acceso */
     adicion: function (sub) { window.GESTION.adicion(sub); },
     cesion: function (sub) { window.GESTION.cesion(sub); },
     suspension: function (sub) { window.GESTION.suspension(sub); },
@@ -296,7 +300,9 @@
     /* 5.4 */
     requerimientos: function () { window.REQS.vista(); },
     comunicados: function () { window.COMUS.vista(); },
-    reporte: function () { window.REPORTE.vista(); }
+    reporte: function () { window.REPORTE.vista(); },
+    /* 26/09 */
+    solicitudes: function () { window.SOLICITUDES.vista(); }
   };
 
   var titulos = {
@@ -313,7 +319,8 @@
     cuenta: 'REVISIÓN DE CUENTA',
     requerimientos: 'REQUERIMIENTOS',
     comunicados: 'COMUNICADOS',
-    reporte: 'REPORTE'
+    reporte: 'REPORTE',
+    solicitudes: 'SOLICITUDES'
   };
 
   /* El permiso de cada vista (llave PERMISOS de CONFIG). El CORE lo vuelve
@@ -322,7 +329,8 @@
     contratistas: 'contratistas', contratista: 'contratistas',
     agregar: 'agregarContratista', masiva: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension', editar: 'editarContratista',
     revisar: 'revisarCuentas', cuenta: 'revisarCuentas',
-    requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte'
+    requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte',
+    solicitudes: 'solicitudes'
   };
 
   function irA(v) { location.hash = '#/' + v; }
@@ -413,6 +421,14 @@
 
     /* 5.4 · la oficina: pedir, informar y rendir cuentas */
     var oficina = [];
+    /* 26/09 · lo que piden los contratistas (acceso por contrato nuevo, adición, cesión…). El número llega con el arranque. */
+    if (puede('solicitudes')) {
+      var nSol = (ARRANQUE && typeof ARRANQUE.solicitudes === 'number') ? ARRANQUE.solicitudes : 0;
+      var accSol = accesoIcono('SOLICITUDES', nSol ? 'Hay ' + nSol + (nSol === 1 ? ' solicitud' : ' solicitudes') + ' de contratistas por responder'
+        : 'Lo que piden los contratistas: acceso, adición, cesión, modificación, suspensión', 'sobre', function () { irA('solicitudes'); });
+      if (nSol) accSol.insertAdjacentHTML('beforeend', '<b class="acceso__burbuja rv-burbuja" aria-label="' + nSol + ' por responder">' + (nSol > 99 ? '99+' : nSol) + '</b>');
+      oficina.push(accSol);
+    }
     if (puede('requerimientos')) {
       oficina.push(acceso('REQUERIMIENTOS', 'Pídele algo a uno o a varios contratistas y sigue si ya lo atendieron',
         'img/tramites_y_solicitudes.webp', function () { irA('requerimientos'); }));

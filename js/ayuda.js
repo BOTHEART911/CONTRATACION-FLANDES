@@ -279,9 +279,37 @@
     };
   };
 
+  /* 26/09 · SOLICITUDES de los contratistas */
+  function SB() { return window.SOLICITUDES || null; }
+  GUIAS.solicitudes = function () {
+    return {
+      guia: 'Aquí llega lo que piden los contratistas: **acceso** (desde la entrada de la app, cuando su contrato está inactivo o todavía no están registrados) y **adición, cesión, modificación o corrección y suspensión** (desde su app). ' +
+            'Toca **Responder** (le llega por WhatsApp o en su app, sin evaluación), registra una **Gestión** con lo que hiciste, o **borra** las que sean basura. ' +
+            'Si pidió acceso y aún no tiene contrato activo, **Agregar contratista** abre el registro con su documento ya validado.',
+      botones: [
+        { texto: '¿Cuántas faltan por responder?', responde: function () {
+            var d = SB() && SB()._datos(); if (!d) return 'Todavía está cargando.';
+            var p = d.lista.filter(function (r) { return SB()._grupo(r) === 'PENDIENTE'; });
+            if (!p.length) return 'Ninguna: estás al día. ✓';
+            var vieja = p[p.length - 1];
+            return '**' + p.length + '** por responder. La que más espera es la **' + vieja.id + '** de ' + nombre(vieja.nombre) + ' (' + String(vieja.fecha).slice(0, 10) + ').';
+          } },
+        { texto: '¿Quiénes piden acceso?', responde: function () {
+            var d = SB() && SB()._datos(); if (!d) return 'Todavía está cargando.';
+            var p = d.lista.filter(function (r) { return r.origen === 'LOGIN' && SB()._grupo(r) === 'PENDIENTE'; });
+            if (!p.length) return 'Nadie está esperando acceso.';
+            return listaCorta(p, function (r) { return '· **' + nombre(r.nombre) + '** (' + r.documento + ')' + (r.activoAhora ? ' · ya tiene contrato ACTIVO' : ''); }, 8);
+          } },
+        { texto: '¿Qué es una gestión suelta?', responde: function () {
+            return 'Lo que la oficina hizo por un contrato sin que el contratista lo pidiera (lo atendieron, se tramitó algo). Se registra con **Registrar gestión** y el contratista la ve en su panel.';
+          } }
+      ]
+    };
+  };
+
   var TITULOS = { inicio: 'Tu inicio',
                   revisar: 'Revisar cuentas', cuenta: 'Revisión de cuenta',
-                  requerimientos: 'Requerimientos', comunicados: 'Comunicados', reporte: 'Reporte de Contratación' };
+                  requerimientos: 'Requerimientos', comunicados: 'Comunicados', reporte: 'Reporte de Contratación', solicitudes: 'Solicitudes' };
 
   /* 10.2 · las guías de contratistas (lista, ficha, gestión y carga masiva) viven en
      js/ayuda-contratos.js, el mismo archivo de ADMIN-FLANDES */

@@ -57,6 +57,7 @@ var ARMAZON = [
   './js/requerimientos.js',
   './js/comunicados.js',
   './js/reporte.js',
+  './js/solicitudes.js',
   './img/icono-32.png',
   './img/icono-180.png',
   './img/icono-192.png',
