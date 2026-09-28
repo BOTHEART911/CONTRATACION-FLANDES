@@ -484,7 +484,7 @@
   function resumenContrato(c) {
     var g = K.nodo('<section class="kit-tarjeta grupo gs-resumen"></section>');
     var cab = K.nodo('<div class="ct-t__cab"></div>');
-    if (K.piezas.personas) cab.appendChild(K.piezas.personas.avatar(c.nombre, { tam: 44 }));
+    if (K.piezas.personas) cab.appendChild(K.piezas.personas.avatar(c.nombre, { tam: 44, foto: c.img || c.imagen || '' }));
     cab.appendChild(K.nodo('<div class="ct-t__quien"><h3 class="ct-t__n">' + K.esc(nombre(c.nombre)) + '</h3>' +
       '<p class="ct-t__doc">Contrato ' + K.esc(c.contrato) + ' · ' + K.esc(c.tramo || 'PRIMARIO') + (c.cesion ? ' · CEDIDO' : '') + '</p></div>'));
     g.appendChild(cab);
@@ -959,7 +959,7 @@
     var a = e.actual, op = e.opciones, anio = op.vigencia;
     var quien = K.nodo('<section class="kit-tarjeta grupo gs-resumen"></section>');
     var cab = K.nodo('<div class="ct-t__cab"></div>');
-    if (K.piezas.personas) cab.appendChild(K.piezas.personas.avatar(e.nombre, { tam: 44 }));
+    if (K.piezas.personas) cab.appendChild(K.piezas.personas.avatar(e.nombre, { tam: 44, foto: e.img || e.imagen || '' }));
     cab.appendChild(K.nodo('<div class="ct-t__quien"><h3 class="ct-t__n">' + K.esc(nombre(e.nombre)) + '</h3>' +
       '<p class="ct-t__doc">CC/NIT ' + K.esc(e.documento) + ' · Contrato ' + K.esc(e.contrato) + ' · ' + K.esc(e.tramo || 'PRIMARIO') + '</p></div>'));
     quien.appendChild(cab);
