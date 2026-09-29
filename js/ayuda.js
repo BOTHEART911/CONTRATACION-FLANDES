@@ -152,9 +152,14 @@
   GUIAS.cuenta = function () {
     return {
       guia: 'Revisa por pestañas: **Contrato**, **Pago**, **Planilla** y **Actividades**. Cada documento se abre en el visor (lo puedes encoger y mover) y cada evidencia en el carrusel con zoom. ' +
-            'Marca con ✓ lo revisado y deja **notas internas** donde haga falta. **Guardar revisión** no cambia el estado: la retomas donde quedaste. ' +
-            'Al **devolver**, tus notas pasan al motivo con un toque; el contratista solo lee el motivo.',
+            'Marca con ✓ lo revisado. En cada obligación y documento tienes dos cajas: **Nota interna** (solo el equipo) y **Para el contratista**. **Guardar revisión** no cambia el estado: la retomas donde quedaste. ' +
+            'Al **devolver**, el motivo sale ya escrito con tus observaciones para el contratista, en orden; lo editas y confirmas. Las notas internas nunca le llegan, y si apruebas, las observaciones no se envían.',
       botones: [
+        { texto: '¿Qué le llega al contratista si devuelvo?', responde: function () {
+            var r = RV(); if (!r || !r._detalle()) return 'La cuenta todavía está cargando.';
+            var t = r._observaciones ? r._observaciones() : '';
+            return t ? 'Esto sale ya escrito en el motivo (lo puedes editar al decidir):\n\n' + t : 'Todavía no hay observaciones para el contratista. Déjalas con **Para el contratista** en cada obligación o documento.';
+          } },
         { texto: '¿Qué me falta por mirar?', responde: function () {
             var r = RV(); if (!r || !r._detalle()) return 'La cuenta todavía está cargando.';
             var B = r._bitacora(), docs = r._docs(), d = r._detalle();
