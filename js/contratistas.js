@@ -353,6 +353,8 @@
     }
 
     function pintar() {
+      /* la lista aún no llega: quien escribe en el buscador espera, no rompe */
+      if (!pEstado || !TODAS) return;
       repintarPastillas();
       var filas = ordenar(filtradas());
       VISTA = filas;
