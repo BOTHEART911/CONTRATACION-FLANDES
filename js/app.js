@@ -466,7 +466,7 @@
        inicio: contarlo dentro de 'inicio' obligaba a leer la hoja CUENTAS
        entera (~2 s) en cada entrada. Y de paso la lista queda lista. */
     if (accRev && window.REVISION) {
-      window.REVISION.cargar(false).then(function (l) {
+      window.REVISION.cargar(false).then(function (l) {   /* 29/09 · NO va de fondo: es la lista de trabajo del revisor (medido: de fondo llegaba 1,7 s después) */
         var n = (l && l.cuentas) ? l.cuentas.length : 0;
         var p = accRev.querySelector('.acceso__p');
         if (n) accRev.insertAdjacentHTML('beforeend', '<b class="acceso__burbuja rv-burbuja" aria-label="' + n + ' por revisar">' + (n > 99 ? '99+' : n) + '</b>');
@@ -478,8 +478,12 @@
        rato después de pintar el inicio: al abrir REPORTE ya está en el
        teléfono. Si falla no pasa nada, la vista lo vuelve a pedir. */
     if (puede('reporte') && window.REPORTE && !vistaInicio._reporte) {
-      vistaInicio._reporte = true;
-      setTimeout(function () { window.REPORTE.cargar(false)['catch'](function () { vistaInicio._reporte = false; }); }, 3500);
+      /* 29/09 · temporizador de la VISTA y cola de fondo: si la persona se va
+         antes de los 3,5 s no se pide (se intentará en la próxima visita) */
+      K.vista.luego(function () {
+        vistaInicio._reporte = true;
+        window.REPORTE.cargar(false, true)['catch'](function () { vistaInicio._reporte = false; });
+      }, 3500);
     }
   }
 

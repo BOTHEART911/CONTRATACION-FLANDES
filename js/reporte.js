@@ -75,10 +75,14 @@
     HORA = new Date();
   }
 
-  function cargar(fresco) {
+  function cargar(fresco, fondo) {
     if (DATA && !fresco) return Promise.resolve(DATA);
-    if (CARGANDO && !fresco) return CARGANDO;
-    CARGANDO = O.leer('reporte', { fresco: !!fresco }).then(function (d) { CARGANDO = null; recibir(d); return DATA; },
+    if (CARGANDO && !fresco) {
+      /* 29/09 · la vista hereda lo que el inicio dejó en la cola de fondo */
+      if (!fondo && K.vista) K.vista.adoptar('reporte');
+      return CARGANDO;
+    }
+    CARGANDO = O.leer('reporte', { fresco: !!fresco }, 0, { fondo: fondo }).then(function (d) { CARGANDO = null; recibir(d); return DATA; },
       function (e) { CARGANDO = null; throw e; });
     return CARGANDO;
   }
