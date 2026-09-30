@@ -526,6 +526,15 @@
   function ficha(d) {
     if (!d || !d.idContrato) return;
     FICHAS[K.norm(d.idContrato)] = { p: Promise.resolve(d), t: Date.now() };
+    if (FICHA && K.norm(FICHA.idContrato) === K.norm(d.idContrato)) { FICHA = d; FICHA_T = Date.now(); }
+  }
+
+  /** 30/09 · la ficha que se acaba de ver (máx. 2 min): las vistas que salen de
+      ella (novedades, todos los datos) la reutilizan en vez de volver a pedirla. */
+  var FICHA_T = 0;
+  function fichaReciente(id) {
+    if (!FICHA || K.norm(FICHA.idContrato) !== K.norm(id) || Date.now() - FICHA_T > 120000) return null;
+    return FICHA;
   }
 
   function adelantar(id) {
@@ -553,12 +562,12 @@
     var f = filaDeLista(id);
     var resto = caja;
     if (f) {
-      caja.appendChild(cabecera(f));
+      caja.appendChild(cabecera(f, true));   /* 30/09 · con los botones de gestión, que solo usan la fila */
       resto = K.nodo('<div class="ct-ficha__resto"></div>');
       caja.appendChild(resto);
     }
     K.piezas.esqueletos.mientras(resto, p, { forma: 'texto', cuantos: f ? 6 : 8 })
-      .then(function (d) { FICHA = d; pintarFicha(caja, d); })
+      .then(function (d) { FICHA = d; FICHA_T = Date.now(); pintarFicha(caja, d); })
       ['catch'](function (e) {
         resto.appendChild(C.errorCaja(e, function () { C.app.innerHTML = ''; detalle(sub); }));
       });
@@ -764,7 +773,7 @@
     /* para la ayuda (Insights) */
     _visibles: function () { return VISTA || filtradas(); },
     _filtros: textoFiltros,
-    _ficha: function () { return FICHA; },
+    _ficha: function () { return FICHA; }, fichaReciente: fichaReciente,
     _filtro: function () { return F; }
   };
 }());
