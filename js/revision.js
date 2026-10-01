@@ -18,7 +18,8 @@
        conserva en este teléfono por si se cierra la app sin querer.
      · TOMAR DECISIÓN: aprobar o devolver. Al devolver, las notas pasan
        al motivo con un toque; el contratista solo lee el motivo. El
-       aviso sale con el nombre del supervisor del contrato.
+       aviso lo firma quien decide en Contratación (01/10/2026), no el
+       supervisor del contrato.
 
    Qué NO se hizo como en la app vieja (a propósito)
      · Cinco botones "Ver / Ocultar" apilados → pestañas: una sección a
@@ -609,7 +610,7 @@
     cab.appendChild(dr);
     if (cu.supervisor && K.piezas.personas) {
       var s = K.nodo('<div class="rv-cab__sup"></div>');
-      s.appendChild(K.piezas.personas.chip(cu.supervisor, 'Supervisor(a) · los avisos van a su nombre', { tam: 34 }));
+      s.appendChild(K.piezas.personas.chip(cu.supervisor, 'Supervisor(a) del contrato', { tam: 34 }));
       cab.appendChild(s);
     }
     caja.appendChild(cab);
@@ -1437,6 +1438,25 @@
 
   /* ══════════════ TOMAR DECISIÓN ══════════════ */
 
+  /* 01/10 · la vista previa usa la plantilla REAL (CUENTA_DEVUELTA_CONTRATACION, editable en ADMIN)
+     que viaja con el detalle; si el CORE aún no la manda, el texto por defecto. Firma: quien decide. */
+  var DEVUELTA_DEFECTO = 'Hola *{nombre}*. Tu cuenta del *informe {informe}* (contrato {contrato}) fue *DEVUELTA.*\n\n*Motivo:*\n{motivo}\n\n' +
+    'Corrígela en CORREGIR CUENTA y, cuando la guardes, repórtala otra vez desde ESTADO DE CUENTA.\n\n*{revisor}*\nOficina de Contratación\n\n_Alcaldía de Flandes · Tolima_';
+  function lineasMotivo(m, negrilla) {
+    return String(m || '').replace(/\r/g, '').split('\n').map(function (x) { return x.replace(/^\s*(?:[-•*·]\s*)+/, '').replace(/\*/g, '').trim(); })
+      .filter(Boolean).map(function (x) { return negrilla ? '- *' + x + '*' : '- ' + x; }).join('\n');
+  }
+  function textoAvisoDevuelta(cu, motivo) {
+    var pl = (D.plantillasDecision && D.plantillasDecision.devuelta) || DEVUELTA_DEFECTO;
+    var datos = { nombre: cu.nombre, contratista: cu.nombre, contrato: cu.contrato, informe: cu.informe, total: cu.total || '',
+      cuenta: cu.informe + (cu.total ? ' de ' + cu.total : ''), motivo: lineasMotivo(motivo, false) || '- …',
+      motivo_negrilla: lineasMotivo(motivo, true) || '- …', observacion: String(motivo || '').trim() || '…',
+      revisor: D.yo.nombre, supervisor: cu.supervisor || '' };
+    return pl.replace(/\{([a-zA-Z_]+)\}/g, function (t, k) { return datos[k] !== undefined && datos[k] !== null ? String(datos[k]) : ''; })
+      .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+
   function tomarDecision() {
     var cu = D.cuenta;
     var p = puntos(), faltan = p.filter(function (k) { return !B.vistos[k]; });
@@ -1468,7 +1488,7 @@
       zona.innerHTML = '';
       if (e === 'APROBAR') {
         zona.appendChild(K.nodo('<p class="rv-dec__txt">Se aprueba la <b>cuenta ' + cu.informe + ' de ' + K.esc(cu.total || '—') + '</b> de <b>' +
-          K.esc(nombre(cu.nombre)) + '</b>. Le llega el aviso para hacer el plan de pagos, a nombre de <b>' + K.esc(nombre(cu.supervisor)) + '</b>.</p>'));
+          K.esc(nombre(cu.nombre)) + '</b>. Le llega el aviso para hacer el plan de pagos, firmado por <b>' + K.esc(nombre(D.yo.nombre)) + '</b> · Oficina de Contratación.</p>'));
         avisoObsAprobar(zona);
       } else {
         zona.appendChild(K.nodo('<label class="rv-dec__et" for="rv-motivo">Motivo de la devolución · <b>lo lee el contratista</b></label>'));
@@ -1504,9 +1524,7 @@
         zona.appendChild(prev);
         var pintarPrev = function () {
           cont.textContent = K.numero(ta.value.length) + ' / 3.000';
-          prev.querySelector('pre').textContent = 'Hola ' + cu.nombre + '. Tu cuenta del informe ' + cu.informe + ' (contrato ' + cu.contrato +
-            ') fue DEVUELTA.\n\nMotivo:\n' + (ta.value.trim() || '…') + '\n\nCorrígela en CORREGIR CUENTA y, cuando la guardes, repórtala otra vez desde ESTADO DE CUENTA.\n\n' +
-            cu.supervisor + '\nSupervisor(a) del contrato';
+          prev.querySelector('pre').textContent = textoAvisoDevuelta(cu, ta.value);
         };
         ta.addEventListener('input', pintarPrev);
         pintarPrev();

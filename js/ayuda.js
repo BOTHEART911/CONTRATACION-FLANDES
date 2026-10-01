@@ -193,7 +193,7 @@
           } },
         { texto: '¿A nombre de quién sale el aviso?', responde: function () {
             var r = RV(), d = r && r._detalle(); if (!d) return 'La cuenta todavía está cargando.';
-            return 'De **' + nombre(d.cuenta.supervisor) + '**, el supervisor del contrato. Quién revisó de verdad queda en la historia de la cuenta (solo lo ve Contratación).';
+            return 'Lo firmas **tú** (' + nombre(d.yo && d.yo.nombre) + ') · Oficina de Contratación: al contratista y al grupo del supervisor. Cuando devuelve el supervisor, firma él. El texto se edita en ADMIN › Configuración › Avisos.';
           } }
       ]
     };
