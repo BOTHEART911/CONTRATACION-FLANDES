@@ -1107,16 +1107,24 @@
     var t = d.getMonth() + n, y = d.getFullYear() + Math.floor(t / 12), m = ((t % 12) + 12) % 12;
     return new Date(y, m, Math.min(d.getDate(), new Date(y, m + 1, 0).getDate()));
   }
-  /** Igual que FC_plazoContrato_ del CORE: cuenta los dos extremos. */
+  /** Igual que FC_plazoContrato_ del CORE (regla recuperada de la hoja
+      CONTRATISTAS el 01/10/2026): meses de calendario contados desde el DÍA
+      de inicio, con el día final incluido; lo que sobra son días. Si ese día
+      no existe en un mes (31 → septiembre), el mes se cumple el 1 del
+      siguiente. La cuenta anterior (restar los días de cada mes) daba, por
+      ejemplo, 29/01 → 28/07 = 5 meses y 28 días en vez de 6 meses. */
+  function mesDesde(a, k) {
+    var d = new Date(a.getFullYear(), a.getMonth() + k, a.getDate());
+    if (d.getDate() !== a.getDate()) d = new Date(a.getFullYear(), a.getMonth() + k + 1, 1);
+    return d;
+  }
   function plazoEntre(ini, fin) {
     if (!ini || !fin || fin < ini) return { meses: 0, dias: 0 };
-    var cur = new Date(ini.getTime()), resto = Math.round((fin - ini) / 864e5) + 1, meses = 0, dias = 0;
-    while (resto > 0) {
-      var enEste = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
-      if (resto >= enEste) { meses++; resto -= enEste; cur.setMonth(cur.getMonth() + 1); }
-      else { dias = resto; resto = 0; }
-    }
-    return { meses: meses, dias: dias };
+    var a = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate());
+    var tope = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate() + 1);
+    var meses = 0;
+    while (mesDesde(a, meses + 1).getTime() <= tope.getTime()) meses++;
+    return { meses: meses, dias: Math.round((tope.getTime() - mesDesde(a, meses).getTime()) / 864e5) };
   }
   function tiempo(m, d) {
     var t = [];
