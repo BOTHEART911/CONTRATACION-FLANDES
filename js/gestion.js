@@ -208,30 +208,178 @@
     return n ? (mil(n) + ' PESOS M/CTE').replace(/\s+/g, ' ') : '';
   }
 
-  /**
-   * Obligaciones: se pegan tal cual vienen del clausulado. Se parten SOLO
-   * por la numeración (1. 2) 3: 4- …, hasta 26), no por los saltos de
-   * línea: una obligación larga ocupa varias líneas en el PDF. Es la regla
-   * de la app vieja, que ya funcionaba.
-   */
-  function partirObligaciones(texto) {
-    var t = String(texto || '').trim();
-    if (!t) return [];
-    var marca = /(?:^|\s)((?:[1-9]|1\d|2[0-6]))\s*(?:[.)]|:|[-–—])\s+/g;
-    var idx = [], m;
-    while ((m = marca.exec(t)) !== null) idx.push({ i: m.index, largo: m[0].length, n: +m[1] });
-    /* solo cuenta si la numeración empieza en 1 y va en orden */
-    var buenas = [], esperado = 1;
-    idx.forEach(function (x) { if (x.n === esperado) { buenas.push(x); esperado++; } });
-    if (!buenas.length) return [t.replace(/\s+/g, ' ')];
-    var out = [];
-    for (var k = 0; k < buenas.length; k++) {
-      var desde = buenas[k].i + buenas[k].largo;
-      var hasta = k + 1 < buenas.length ? buenas[k + 1].i : t.length;
-      var parte = t.slice(desde, hasta).replace(/\s+/g, ' ').trim();
-      if (parte) out.push(parte);
+  /* ══════════════ REGLA ÚNICA DE OBLIGACIONES (07/10/2026) ══════════════
+     El MISMO código vive en js/gestion.js (CONTRATACION y ADMIN) y en
+     Obligaciones.gs del CORE: si se cambia aquí, se cambia en los tres.
+
+     Inicio de obligación = número 1 a 26 + separador (. ) - : – —).
+       · Puede ir sin espacio después ("11.Realizar", "3-Organizar",
+         "4)Atender") y en cualquier parte del texto, no solo al comienzo
+         del renglón: basta que antes haya un final de frase (. ; :), un
+         salto de renglón o el comienzo del texto.
+       · Con espacio después ("4. Apoyar") vale también en medio de una
+         frase, como en la app vieja.
+       · El orden manda: solo cuenta el número que sigue (1, 2, 3…).
+       · NO cuentan: números pegados a otros dígitos o letras ("2026.",
+         "A1."), referencias ("594/2000", "CPS-250-2026", "10:30", "3.5",
+         "1.000.000"), ni números que van después de "artículo", "numeral",
+         "literal", "No.", "ley", "decreto"… ("artículo 5. Del…").
+     Devuelve { lista, avisos }. Los avisos no impiden guardar: obligan a
+     confirmar el conteo. */
+  var OBL_TOPE = 26;
+  var OBL_REF = /^(?:art[ií]culos?|arts?|numerales?|literal(?:es)?|incisos?|par[aá]grafos?|leyes|ley|decretos?|resoluci[oó]n(?:es)?|acuerdos?|ordenanzas?|circular(?:es)?|sentencias?|cap[ií]tulos?|[ií]tems?|puntos?|anexos?|cl[aá]usulas?|tomos?|folios?|p[aá]ginas?|p[aá]gs?|tablas?|cuadros?|figuras?|gr[aá]ficos?|versi[oó]n|fases?|etapas?|lotes?|grados?|niveles?|pisos?|calles?|carreras?|cras?|kras?|cll?|kr|manzanas?|mz|casas?|apto|apartamentos?|torres?|bloques?|comunas?|sectores?|zonas?|vigencias?|n[uú]meros?|n[uú]m|nros?|no|n|nº|n°)$/i;
+  var OBL_LETRA = /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ¿¡"“«'(\[]/;
+  var OBL_MAYUS = /[A-ZÁÉÍÓÚÜÑ¿¡"“«'(\[]/;
+
+  var OBL_INVISIBLES = /[\u00AD\u200B-\u200D\u2060\uFEFF]/g;              /* espacios de ancho cero que trae el PDF */
+  function oblLimpia(s) { return String(s || '').replace(OBL_INVISIBLES, '').replace(/\s+/g, ' ').trim(); }
+  function oblCorto(s, n) { s = oblLimpia(s); return s.length > n ? s.slice(0, n) + '…' : s; }
+
+  /** Todas las marcas posibles "N." del texto, con su fuerza. */
+  function oblMarcas(t) {
+    var re = /(\d{1,2})[ \t]*([.)\-:–—])[.)\-:–—]?/g, m, out = [];     /* "5." "5.-" "5)." */
+    while ((m = re.exec(t)) !== null) {
+      var i = m.index, n = +m[1], fin = i + m[0].length;
+      var prev = i > 0 ? t.charAt(i - 1) : '';
+      var parentesis = prev === '(' && m[2] === ')';
+      if (parentesis) { i--; prev = i > 0 ? t.charAt(i - 1) : ''; }                       /* "(4) Atender" */
+      if (prev && /[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ\/\-–—°º_@#$%+=*&]/.test(prev)) continue;   /* pegado a otra cosa */
+      if (prev === ',') continue;                                                          /* 1,5 · listas de cifras */
+      /* lo que sigue al separador: espacios y luego una letra */
+      var j = fin, conEspacio = false;
+      while (j < t.length && /\s/.test(t.charAt(j))) { j++; conEspacio = true; }
+      if (conEspacio && /[.\-–—:]/.test(t.charAt(j))) {                                  /* "5. .Apoyar" · "5. - Apoyar" */
+        j++; while (j < t.length && /\s/.test(t.charAt(j))) j++;
+      }
+      var sig = t.charAt(j);
+      if (!sig || !OBL_LETRA.test(sig)) continue;                                          /* 3.5 · 10:30 · 12-03-2026 · fin del texto */
+      /* la palabra de antes ("artículo 5.", "No. 5.") lo vuelve referencia */
+      var antes = t.slice(Math.max(0, i - 40), i);
+      var pal = /([A-Za-zÁÉÍÓÚÜÑáéíóúüñºª°]+)\.?\s*$/.exec(antes);
+      var finFrase = /[.;:!?)\]"”»]\s*$/.test(antes) && !/\d[.;:]\s*$/.test(antes) || /\n[ \t]*$/.test(antes);
+      if (pal && OBL_REF.test(pal[1]) && !/[;:]\s*$/.test(antes)) {
+        /* "artículo 5." es referencia; "…del artículo. 5. Hacer" no, porque hay punto de frase */
+        var conPunto = /\.\s*$/.test(antes) && !/^(?:no|n|nros?|n[uú]m|arts?|p[aá]gs?)$/i.test(pal[1]);
+        if (!conPunto) continue;
+      }
+      var inicioTexto = t.slice(0, i).trim() === '';
+      out.push({
+        i: i, fin: j, n: n,                       /* fin = donde empieza el texto de la obligación */
+        limite: finFrase || inicioTexto,          /* hay final de frase, renglón o comienzo antes */
+        espacio: conEspacio && !parentesis,       /* "diez (10) días" no parte una frase */
+        pegadoMayus: !conEspacio && /\s/.test(prev) && OBL_MAYUS.test(sig),   /* "… entidad 2.Hacer" */
+        fuerte: (finFrase || inicioTexto) && OBL_MAYUS.test(sig)
+      });
     }
     return out;
+  }
+
+  function oblPartir(texto) {
+    var t = String(texto || '').replace(/\r\n?/g, '\n').replace(OBL_INVISIBLES, '');
+    var res = { lista: [], avisos: [] };
+    if (!t.trim()) return res;
+    var marcas = oblMarcas(t), buenas = [], esperado = 1;
+    marcas.forEach(function (x) {
+      /* la siguiente en orden: con espacio vale en cualquier parte (regla vieja);
+         sin espacio necesita final de frase, renglón, el comienzo del texto o
+       una mayúscula detrás ("… entidad 2.Hacer"); "(N)" necesita final de frase */
+      if (x.n === esperado && (x.espacio || x.limite || x.pegadoMayus)) { x.buena = true; buenas.push(x); esperado++; return; }
+      if (!x.fuerte || !buenas.length) return;
+      if (x.n > esperado && x.n <= 40) res.avisos.push({ tipo: 'salto', n: esperado - 1,
+        texto: 'Después de la ' + (esperado - 1) + ' aparece la ' + x.n + ': falta la ' + esperado + (x.n > esperado + 1 ? ' (o más)' : '') + '.' });
+      else if (x.n < esperado) res.avisos.push({ tipo: 'repetido', n: esperado - 1,
+        texto: 'El número ' + x.n + ' aparece otra vez dentro de la obligación ' + (esperado - 1) + '.' });
+    });
+    if (!buenas.length) {
+      res.lista = [oblLimpia(t)];
+      res.avisos.push({ tipo: 'sinNumero', n: 1, texto: 'El texto no trae numeración (1. 2. 3. …): todo queda como UNA sola obligación.' });
+      return res;
+    }
+    var pre = oblLimpia(t.slice(0, buenas[0].i));
+    if (pre) res.avisos.push({ tipo: 'antes', n: 0, texto: 'Lo que va antes de la 1 no se guarda: «' + oblCorto(pre, 60) + '».' });
+    var crudos = [];
+    for (var k = 0; k < buenas.length; k++) {
+      var crudo = t.slice(buenas[k].fin, k + 1 < buenas.length ? buenas[k + 1].i : t.length);
+      var parte = oblLimpia(crudo);
+      if (!parte) { res.avisos.push({ tipo: 'vacia', n: k + 1, texto: 'La obligación ' + (k + 1) + ' está vacía.' }); continue; }
+      res.lista.push(parte);
+      crudos.push(crudo);
+    }
+    /* muy larga frente a las demás: posible obligación pegada */
+    if (res.lista.length >= 3) {
+      var largos = res.lista.map(function (x) { return x.length; }).sort(function (a, b) { return a - b; });
+      var mediana = largos[Math.floor(largos.length / 2)];
+      res.lista.forEach(function (x, k) {
+        if (x.length > 400 && x.length > mediana * 2.5) res.avisos.push({ tipo: 'larga', n: k + 1,
+          texto: 'La obligación ' + (k + 1) + ' es mucho más larga que las demás (' + x.length + ' letras): revisa que no traiga otra pegada.' });
+      });
+    }
+    /* después del último número, un renglón aparte que parece otra obligación */
+    var ult = crudos[crudos.length - 1] || '';
+    var reng = ult.split('\n').map(function (r) { return r.trim(); });
+    for (var r = 1; r < reng.length; r++) {
+      var resto = oblLimpia(reng.slice(r).join(' '));
+      if (/[.;]$/.test(reng[r - 1]) && reng[r] && OBL_MAYUS.test(reng[r].charAt(0)) && resto.length >= 25) {
+        res.avisos.push({ tipo: 'cola', n: res.lista.length,
+          texto: 'Después de la ' + res.lista.length + ' sigue un renglón aparte sin número: «' + oblCorto(resto, 60) + '». Si es otra obligación, ponle su número.' });
+        break;
+      }
+    }
+    if (res.lista.length > OBL_TOPE) res.avisos.push({ tipo: 'tope', n: res.lista.length,
+      texto: 'Son ' + res.lista.length + ': el máximo es ' + OBL_TOPE + '.' });
+    return res;
+  }
+
+  /** Una lista ya partida, vuelta a numerar y partida otra vez, debe dar lo mismo.
+      Si no, alguna obligación trae adentro el comienzo de otra. Devuelve el
+      número de la primera que falla (0 = bien). */
+  function oblPegada(lista) {
+    /* lo que sobra al comienzo (".Apoyar", "- Apoyar") no cuenta como diferencia */
+    function sin(x) { return oblLimpia(x).replace(/^[.\-–—:;,)\s]+/, ''); }
+    var l = (lista || []).map(sin).filter(Boolean);
+    if (!l.length) return 0;
+    var otra = oblPartir(l.map(function (o, i) { return (i + 1) + '. ' + o; }).join('\n')).lista;
+    for (var i = 0; i < l.length; i++) if (sin(otra[i]) !== l[i]) return i + 1;
+    return otra.length !== l.length ? l.length : 0;
+  }
+
+  /** Lo que usan el alta, el editar y la masiva: la lista partida. */
+  function partirObligaciones(texto) { return oblPartir(texto).lista; }
+
+  /**
+   * Vista previa en vivo debajo del campo: la lista numerada TAL COMO se va
+   * a guardar (número + comienzo de cada una) y los avisos. Devuelve el
+   * análisis para que el guardado lo use sin volver a partir.
+   */
+  function pintarObligaciones(caja, texto) {
+    var r = oblPartir(texto);
+    var l = r.lista, marca = {};
+    r.avisos.forEach(function (a) { if (a.n) marca[a.n] = true; });
+    if (!String(texto || '').trim()) { caja.innerHTML = ''; return r; }
+    caja.innerHTML =
+      '<p class="gs-obl__n"><b>' + l.length + '</b> ' + (l.length === 1 ? 'obligación' : 'obligaciones') +
+        (l.length > OBL_TOPE ? ' — pasan de ' + OBL_TOPE : '') + ' · así se van a guardar</p>' +
+      (r.avisos.length ? '<ul class="gs-obl__av" role="alert">' + r.avisos.map(function (a) {
+        return '<li>' + K.icono('aviso', 14) + '<span>' + K.esc(a.texto) + '</span></li>';
+      }).join('') + '</ul>' : '') +
+      '<ol>' + l.slice(0, 40).map(function (x, i) {
+        return '<li' + (marca[i + 1] ? ' class="gs-obl__ojo"' : '') + '><b class="gs-obl__num">' + (i + 1) + '.</b>' +
+          '<span>' + K.esc(oblCorto(x, 110)) + '</span>' +
+          '<small>' + x.length + '</small></li>';
+      }).join('') + '</ol>';
+    return r;
+  }
+
+  /** Con cualquier aviso, nadie guarda a ciegas: se confirma el conteo. */
+  function confirmarObligaciones(r) {
+    if (!r || !r.avisos.length) return Promise.resolve(true);
+    var n = r.lista.length;
+    return K.piezas.confirmar.preguntar({
+      titulo: 'Vas a guardar ' + n + (n === 1 ? ' obligación' : ' obligaciones'),
+      lista: r.avisos.map(function (a) { return [a.n ? 'Obligación ' + a.n : 'Texto', a.texto]; }),
+      nota: 'Si el conteo está bien, sigue. Si no, toca Revisar y corrige el texto: la vista previa te muestra cómo queda.',
+      si: 'Sí, son ' + n, no: 'Revisar'
+    });
   }
 
   /* ══════════════ listas del formulario ══════════════ */
@@ -384,17 +532,11 @@
       campoTexto(paso2, D, 'objeto', 'Objeto del contrato', 'Se guarda en mayúsculas y en un solo párrafo.', { area: true, filas: 3 });
 
       var obl = campoTexto(paso2, D, 'obligaciones', 'Obligaciones',
-        'Pégalas del clausulado con su numeración (1. 2. 3. …). Se separan por el número, no por los saltos de línea. Máximo 26.',
+        'Pégalas del clausulado con su numeración (1. 2. 3. …). Se separan por el número, no por los saltos de línea. Debajo ves cómo quedan. Máximo 26.',
         { area: true, filas: 8 });
       var cuenta = K.nodo('<div class="gs-obl" aria-live="polite"></div>');
       obl.parentNode.appendChild(cuenta);
-      function pintarObl() {
-        var l = partirObligaciones(D.obligaciones);
-        cuenta.innerHTML = l.length
-          ? '<p class="gs-obl__n"><b>' + l.length + '</b> ' + (l.length === 1 ? 'obligación' : 'obligaciones') + (l.length > 26 ? ' — pasan de 26' : '') + '</p>' +
-            '<ol>' + l.slice(0, 26).map(function (x) { return '<li>' + K.esc(x.length > 140 ? x.slice(0, 140) + '…' : x) + '</li>'; }).join('') + '</ol>'
-          : '';
-      }
+      function pintarObl() { pintarObligaciones(cuenta, D.obligaciones); }
       obl.addEventListener('input', pintarObl);
       obl.addEventListener('input', function () { obl.style.height = 'auto'; obl.style.height = (obl.scrollHeight + 4) + 'px'; });
 
@@ -407,12 +549,18 @@
       ev.preventDefault();
       var falta = faltaAlta(D, V);
       if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 7000); return; }
-      var obls = partirObligaciones(D.obligaciones);
+      var oblR = oblPartir(D.obligaciones);
+      confirmarObligaciones(oblR).then(function (si) { if (si) registrar(oblR.lista); });
+    });
+
+    function registrar(obls) {
       var datos = {
         documento: D.documento, nombre: D.nombre, telefono: D.telefono || '', correo: D.correo || '',
         secretaria: D.secretaria, supervisor: D.supervisor, contrato: D.contrato, tipo: D.tipo,
         fechaContrato: D.fechaContrato, valor: String(K.aNumero(D.valor)), cdp: D.cdp,
-        objeto: String(D.objeto || '').replace(/\s+/g, ' ').trim().toUpperCase(), obligaciones: obls
+        objeto: String(D.objeto || '').replace(/\s+/g, ' ').trim().toUpperCase(), obligaciones: obls,
+        /* 07/10 · el CORE las vuelve a partir con la misma regla y compara */
+        obligacionesTexto: String(D.obligaciones || ''), nObl: obls.length
       };
       ULTIMA = { vista: 'agregar', datos: datos };
       guardar({
@@ -433,7 +581,7 @@
         K.aviso('Contrato ' + r.contrato + ' registrado.', 'ok', 4000);
         C.irA('contratista/' + encodeURIComponent(r.idContrato));
       });
-    });
+    }
   }
 
   function faltaAlta(D, V) {
@@ -451,7 +599,7 @@
     if (String(D.objeto || '').trim().length < 20) f.push('el objeto');
     var n = partirObligaciones(D.obligaciones).length;
     if (!n) f.push('las obligaciones');
-    if (n > 26) f.push('máximo 26 obligaciones');
+    if (n > OBL_TOPE) f.push('máximo ' + OBL_TOPE + ' obligaciones');
     return f;
   }
 
@@ -925,7 +1073,7 @@
     if (normObjeto(D.objeto).length < 20) f.push('el objeto');
     var n = partirObligaciones(D.obligaciones).length;
     if (!n) f.push('las obligaciones');
-    if (n > 26) f.push('máximo 26 obligaciones');
+    if (n > OBL_TOPE) f.push('máximo ' + OBL_TOPE + ' obligaciones');
     return f;
   }
 
@@ -1025,14 +1173,10 @@
 
     var obj = campoTexto(f, D, 'objeto', 'Objeto del contrato', 'Se guarda en mayúsculas y en un solo párrafo.', { area: true, filas: 4 });
     var obl = campoTexto(f, D, 'obligaciones', 'Obligaciones',
-      'Una por número (1. 2. 3. …). Se separan por el número, no por los saltos de línea. Máximo 26.', { area: true, filas: 10 });
+      'Una por número (1. 2. 3. …). Se separan por el número, no por los saltos de línea. Debajo ves cómo quedan. Máximo 26.', { area: true, filas: 10 });
     var cuenta = K.nodo('<div class="gs-obl" aria-live="polite"></div>');
     obl.parentNode.appendChild(cuenta);
-    function pintarObl() {
-      var l = partirObligaciones(D.obligaciones);
-      cuenta.innerHTML = '<p class="gs-obl__n"><b>' + l.length + '</b> ' + (l.length === 1 ? 'obligación' : 'obligaciones') +
-        (l.length > 26 ? ' — pasan de 26' : '') + '</p>';
-    }
+    function pintarObl() { pintarObligaciones(cuenta, D.obligaciones); }
     function crecer(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 4) + 'px'; }
     obl.addEventListener('input', pintarObl);
     obl.addEventListener('input', function () { crecer(obl); });
@@ -1052,6 +1196,12 @@
       var c = cambiosDe(a, D);
       var claves = Object.keys(c);
       if (!claves.length) { K.aviso('No cambiaste nada.', 'aviso', 4000); return; }
+      var oblR = c.obligaciones ? oblPartir(D.obligaciones) : null;
+      confirmarObligaciones(oblR).then(function (si) { if (si) seguir(c, claves, oblR); });
+    });
+
+    function seguir(c, claves, oblR) {
+      if (oblR) { c.obligacionesTexto = String(D.obligaciones || ''); c.nObl = oblR.lista.length; }
       var es = chk.checked;
       var lista = EDITABLES.filter(function (x) { return c[x[0]] !== undefined; }).map(function (x) {
         var antes = x[0] === 'valorInicial' ? a.valorInicial : a[x[0]];
@@ -1075,7 +1225,7 @@
         if (typeof r.carpetaMovida === 'string') K.aviso('Se guardó, pero la carpeta de Drive no se pudo mover: ' + r.carpetaMovida, 'aviso', 9000);
         volverAFicha(e);
       });
-    });
+    }
   }
 
   function pintarHistorial(cuerpo, h) {
@@ -1136,6 +1286,6 @@
   window.GESTION = {
     configurar: configurar, agregar: agregar, adicion: adicion, cesion: cesion, suspension: suspension, editar: editar,
     /* para las pruebas y la ayuda */
-    _letras: letras, _partir: partirObligaciones, _particion: particion, _plazo: plazoEntre, _ultima: function () { return ULTIMA; }, _cambios: cambiosDe
+    _letras: letras, _partir: partirObligaciones, _obl: oblPartir, _pegada: oblPegada, _confirmarObl: confirmarObligaciones, _particion: particion, _plazo: plazoEntre, _ultima: function () { return ULTIMA; }, _cambios: cambiosDe
   };
 }());

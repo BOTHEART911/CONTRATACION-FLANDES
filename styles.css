@@ -2000,6 +2000,20 @@
 .gs-obl ol { margin: 0; padding: 10px 12px 10px 34px; max-height: 260px; overflow: auto; border-radius: 12px;
   background: rgba(var(--k-marca-rgb), .05); font: 400 .8rem/1.45 var(--k-fuente); color: var(--k-tinta-2); }
 .gs-obl li + li { margin-top: 5px; }
+/* 07/10 · obligaciones: vista previa tal como se guardan + avisos */
+.gs-obl ol { list-style: none; padding-left: 12px; }
+.gs-obl li { display: flex; gap: 8px; align-items: baseline; }
+.gs-obl__num { flex: none; min-width: 1.6em; text-align: right; color: var(--k-marca); font-variant-numeric: tabular-nums; }
+.gs-obl li.gs-obl__ojo .gs-obl__num { color: var(--k-aviso); }
+.gs-obl li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gs-obl li small { flex: none; font-size: .68rem; color: var(--k-apagado); font-variant-numeric: tabular-nums; }
+.gs-obl li.gs-obl__ojo { color: var(--k-aviso); font-weight: 600; }
+.gs-obl li.gs-obl__ojo small { color: var(--k-aviso); }
+.gs-obl__av { list-style: none; margin: 6px 0 8px; padding: 10px 12px; border-radius: 12px;
+  background: var(--k-aviso-fondo); color: var(--k-aviso); font: 600 .8rem/1.4 var(--k-fuente); }
+.gs-obl__av li { display: flex; gap: 8px; align-items: flex-start; }
+.gs-obl__av li + li { margin-top: 6px; }
+.gs-obl__av svg { flex: none; margin-top: 2px; }
 .gs-resumen { padding: 16px; gap: 12px; }
 .gs-corregir { align-self: flex-start; }
 .formulario textarea { width: 100%; }
@@ -2462,6 +2476,8 @@
 .ms-f__txt small { font: 500 .74rem/1.3 var(--k-fuente); color: var(--k-apagado); }
 .ms-f__txt p { margin: 0; font: 500 .8rem/1.4 var(--k-fuente); color: var(--k-tinta-2); overflow-wrap: anywhere; }
 .ms-f--mal .ms-f__txt p { color: var(--k-malo); }
+.ms-f__txt p.ms-f__obl { font-size: .74rem; color: var(--k-apagado); }
+.ms-f__txt p.ms-f__obl--ojo { color: var(--k-aviso); font-weight: 600; }
 .ms-f__ver { align-self: flex-start; margin-top: 4px; padding: 4px 10px; font-size: .78rem; }
 
 .gs-particion { display: flex; flex-direction: column; gap: 10px; }

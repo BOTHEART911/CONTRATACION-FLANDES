@@ -77,6 +77,13 @@
     return i ? i[3] + '/' + i[2] + '/' + i[1] : t;
   }
 
+  /* 07/10 · avisos de obligaciones por fila del Excel (los pinta la revisión) */
+  var AVISOS_OBL = {};
+  function analizar(t) {
+    if (window.GESTION && window.GESTION._obl) return window.GESTION._obl(t);
+    return { lista: partir(t), avisos: [] };
+  }
+
   /** "1. Hacer esto 2. Hacer aquello" -> ['Hacer esto', 'Hacer aquello'] (el mismo corte del alta de uno). */
   function partir(t) {
     if (window.GESTION && window.GESTION._partir) return window.GESTION._partir(t);
@@ -123,10 +130,22 @@
       x.telefono = texto(x.telefono).replace(/\D/g, '');
       x.fechaContrato = fechaExcel(x.fechaContrato);
       ['nombre', 'tipo', 'objeto', 'secretaria', 'supervisor', 'correo'].forEach(function (k) { x[k] = texto(x[k]); });
-      var lista = [];
-      if (mapa.obligaciones !== undefined) lista = partir(texto(f[mapa.obligaciones]).replace(/\s*\n\s*/g, ' '));
+      var lista = [], avisos = [];
+      if (mapa.obligaciones !== undefined && texto(f[mapa.obligaciones])) {
+        /* 07/10 · la celda va tal cual (con sus renglones): el CORE la vuelve a partir y compara */
+        var crudo = String(f[mapa.obligaciones] === null || f[mapa.obligaciones] === undefined ? '' : f[mapa.obligaciones]);
+        var an = analizar(crudo);
+        lista = an.lista; avisos = an.avisos;
+        x.obligacionesTexto = crudo;
+      }
       Object.keys(obl).sort(function (a, b) { return obl[a] - obl[b]; }).forEach(function (j) { var o = texto(f[j]); if (o) lista.push(o); });
+      if (x.obligacionesTexto === undefined && lista.length && window.GESTION && window.GESTION._pegada) {
+        var k = window.GESTION._pegada(lista);
+        if (k) avisos.push({ tipo: 'pegada', n: k, texto: 'La obligación ' + k + ' trae adentro el comienzo de la ' + (k + 1) + '.' });
+      }
       x.obligaciones = lista;
+      x.nObl = lista.length;
+      AVISOS_OBL[r + 1] = avisos;
       /* la fila de ejemplo de la plantilla no se carga */
       if (/^EJEMPLO/i.test(x.nombre) || x.documento === '1234567890') continue;
       filas.push(x);
@@ -168,6 +187,7 @@
       if (!/\.xlsx?$/i.test(archivo.name)) { K.aviso('Carga el archivo de Excel (.xlsx) de la plantilla.', 'aviso', 5000); return; }
       rot.textContent = archivo.name;
       ULTIMO = { filas: [], revision: null, resultado: null, archivo: archivo.name };
+      AVISOS_OBL = {};
       p3.innerHTML = '';
       var quitar = K.piezas.esqueletos ? K.piezas.esqueletos.poner(p3, { forma: 'tarjetas', cuantos: 3, espera: 'Leyendo y revisando el archivo' }) : function () {};
       guion(CDN_XLSX).then(function () {
@@ -206,12 +226,24 @@
     t.querySelector('p').textContent = r.ok
       ? (r.idContrato ? 'Registrado' + (r.nuevo === false ? ' (ya había estado: conserva sus datos y su contraseña)' : '') : (r.tipo || 'Listo para registrar') + (r.valor ? ' · ' + pesos(r.valor) : ''))
       : (r.error || 'No pasa');
+    var fx = porFilaLeida(r.fila), av = AVISOS_OBL[r.fila] || [];
+    if (fx && !r.idContrato) {
+      var o = K.nodo('<p class="ms-f__obl' + (av.length ? ' ms-f__obl--ojo' : '') + '"></p>');
+      o.textContent = (fx.obligaciones || []).length + ((fx.obligaciones || []).length === 1 ? ' obligación' : ' obligaciones') +
+        (av.length ? ' · ' + av.map(function (a) { return a.texto; }).join(' ') : '');
+      t.querySelector('.ms-f__txt').appendChild(o);
+    }
     if (conEnlace && r.idContrato && C.irA) {
       var b = K.nodo('<button type="button" class="kit-btn kit-btn--plano ms-f__ver">' + K.icono('documento', 14) + ' Ver ficha</button>');
       b.addEventListener('click', function () { C.irA('contratista/' + encodeURIComponent(r.idContrato)); });
       t.querySelector('.ms-f__txt').appendChild(b);
     }
     return t;
+  }
+
+  function porFilaLeida(fila) {
+    for (var i = 0; i < ULTIMO.filas.length; i++) if (ULTIMO.filas[i].fila === fila) return ULTIMO.filas[i];
+    return null;
   }
 
   function pintarRevision(z, r) {
@@ -230,12 +262,26 @@
       if (buenas.length > TANDA) s.appendChild(K.nodo('<p class="formulario__nota">Son más de ' + TANDA + ': se registran por tandas de ' + TANDA + ' (cada contrato crea su carpeta en Drive). No cierres la app.</p>'));
       s.appendChild(bt);
       bt.addEventListener('click', function () {
+        /* 07/10 · con avisos en las obligaciones, primero se confirma el conteo de esas filas */
+        var conAviso = buenas.filter(function (x) { return (AVISOS_OBL[x.fila] || []).length; });
+        var antes = !conAviso.length ? Promise.resolve(true) : K.piezas.confirmar.preguntar({
+          titulo: 'Revisa las obligaciones de ' + conAviso.length + (conAviso.length === 1 ? ' fila' : ' filas'),
+          lista: conAviso.slice(0, 12).map(function (x) {
+            var f = porFilaLeida(x.fila) || {}, n = (f.obligaciones || []).length;
+            return ['Fila ' + x.fila + ' · ' + n + ' obligaciones', AVISOS_OBL[x.fila].map(function (a) { return a.texto; }).join(' ')];
+          }),
+          nota: conAviso.length > 12 ? 'Y ' + (conAviso.length - 12) + ' filas más con aviso. ' : 'Si el conteo de cada fila está bien, sigue; si no, corrige el Excel y cárgalo otra vez.',
+          si: 'Los conteos están bien', no: 'Revisar'
+        });
+        antes.then(function (ok) { if (ok) confirmarRegistro(); });
+      });
+      var confirmarRegistro = function () {
         K.piezas.confirmar.preguntar({
           titulo: '¿Registrar ' + buenas.length + (buenas.length === 1 ? ' contrato?' : ' contratos?'),
           texto: av.querySelector('input').checked ? 'A cada uno le llega el aviso (y su contraseña si es nuevo).' : 'En silencio: no le llega nada a nadie. Los nuevos tendrán que usar "Olvidé mi contraseña".',
           si: 'Registrar'
         }).then(function (si) { if (si) registrar(z, buenas, av.querySelector('input').checked); });
-      });
+      };
     }
     var l = K.nodo('<div class="ms-lista"></div>');
     malas.concat(buenas).forEach(function (x) { l.appendChild(tarjetaFila(x, false)); });
