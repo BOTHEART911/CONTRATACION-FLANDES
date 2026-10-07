@@ -186,6 +186,8 @@
     if (window.REQS) window.REQS.configurar(cOf);
     if (window.COMUS) window.COMUS.configurar(cOf);
     if (window.REPORTE) window.REPORTE.configurar(cOf);
+    /* 06/10 · MIS REGISTROS: lo que hizo cada persona, para descargarlo */
+    if (window.MISREGISTROS) window.MISREGISTROS.configurar({ app: app, errorCaja: errorCaja, nombreApp: 'Contratacion' });
     /* 26/09 · SOLICITUDES de los contratistas: el número del inicio sigue a la bandeja sin otro viaje */
     if (window.SOLICITUDES) window.SOLICITUDES.configurar({ app: app, puede: puede, irA: irA, errorCaja: errorCaja,
       alCambiar: function (n) { if (ARRANQUE) ARRANQUE.solicitudes = n; } });
@@ -222,6 +224,7 @@
    * abrir (llave PERMISOS de CONFIG). El CORE vuelve a comprobarlo en cada
    * llamada: esconder un botón no es la seguridad, es la cortesía. */
   function puede(vista) {
+    if (vista === '*') return true;   /* 06/10 · MIS REGISTROS: cada quien ve lo suyo (lo filtra el CORE) */
     var r = K.norm((YO && YO.rol) || '');
     if (r === 'DEV') return true;   /* DEV va siempre solo; con varios roles el CORE ya manda la unión de sus vistas */
     var v = (YO && YO.vistas) || [];
@@ -257,6 +260,7 @@
         /* 5.1.1 · soporte en TODAS las apps: se guarda en la hoja SOPORTE
            (la responde ADMIN) y avisa al grupo de desarrollo por WhatsApp */
         /* guías rápidas: el PDF de esta app (carpeta GUÍAS RÁPIDAS de Drive) */
+        { texto: 'Mis registros (descargar lo que hice)', al: function () { irA('misregistros'); } },
         { texto: 'Descargar guía rápida', al: function () { if (K.piezas.guia) K.piezas.guia.descargar('CONTRATACION'); } },
         { texto: 'Soporte', al: function () { if (K.piezas.soporte) K.piezas.soporte.abrir({ vista: vistaActual() }); } },
         { texto: 'Cerrar sesión', al: salir, peligro: true }
@@ -281,6 +285,7 @@
     if (window.REQS) window.REQS.olvidar();
     if (window.COMUS) window.COMUS.olvidar();
     if (window.REPORTE) window.REPORTE.olvidar();
+    if (window.MISREGISTROS) window.MISREGISTROS.olvidar();
     if (window.SOLICITUDES) window.SOLICITUDES.olvidar();
     vistaInicio._reporte = false;
     K.piezas.sesion.salir();
@@ -307,6 +312,7 @@
     requerimientos: function () { window.REQS.vista(); },
     comunicados: function () { window.COMUS.vista(); },
     reporte: function () { window.REPORTE.vista(); },
+    misregistros: function () { window.MISREGISTROS.vista(); },   /* 06/10 */
     /* 26/09 */
     solicitudes: function () { window.SOLICITUDES.vista(); }
   };
@@ -326,6 +332,7 @@
     requerimientos: 'REQUERIMIENTOS',
     comunicados: 'COMUNICADOS',
     reporte: 'REPORTE',
+    misregistros: 'MIS REGISTROS',
     solicitudes: 'SOLICITUDES'
   };
 
@@ -336,6 +343,7 @@
     agregar: 'agregarContratista', masiva: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension', editar: 'editarContratista',
     revisar: 'revisarCuentas', cuenta: 'revisarCuentas',
     requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte',
+    misregistros: '*',
     solicitudes: 'solicitudes'
   };
 
@@ -447,6 +455,9 @@
       oficina.push(acceso('REPORTE', 'Cuentas aprobadas y devueltas por fechas y por quién las revisó, en PDF o Excel',
         'img/pdf.webp', function () { irA('reporte'); }));
     }
+    /* 06/10 · MIS REGISTROS: todos los roles (cada quien descarga lo suyo) */
+    oficina.push(accesoIcono('MIS REGISTROS', 'Lo que has hecho: cuentas revisadas, ingresos, adiciones, cesiones y suspensiones. Descárgalo en PDF o Excel',
+      'descargar', function () { irA('misregistros'); }));
     if (oficina.length) bloque('OFICINA', oficina);
 
     var sRes = K.nodo('<section class="bloque" aria-label="Resumen de contratos"><h3 class="bloque__t">RESUMEN DE CONTRATOS</h3></section>');
