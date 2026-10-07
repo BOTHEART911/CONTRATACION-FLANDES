@@ -227,6 +227,28 @@
      Devuelve { lista, avisos }. Los avisos no impiden guardar: obligan a
      confirmar el conteo. */
   var OBL_TOPE = 26;
+
+  /* 07/10 · CELULAR DEL CONTRATISTA: el real o vacío, nunca un genérico.
+     Misma regla que FC_celularRevisar_ (Contratacion.gs del CORE). Sin
+     celular, la contraseña inicial es su documento y no sale WhatsApp. */
+  var SIN_CEL_TXT = 'Sin celular: su contraseña será su documento. Díselo al contratista.';
+  function celularGenerico(t) {
+    var r = t.slice(1);
+    if (/^(\d)\1+$/.test(r)) return true;
+    if (/(\d)\1{6,}/.test(t)) return true;
+    if (/^(\d\d)\1{3,}/.test(r)) return true;
+    if ('01234567890'.indexOf(r) >= 0 || '98765432109'.indexOf(r) >= 0) return true;
+    return ['3001234567', '3000000001', '3001112233'].indexOf(t) >= 0;
+  }
+  function celularRevisar(v) {
+    var t = String(v === null || v === undefined ? '' : v).replace(/\D/g, '');
+    if (t.length === 12 && t.indexOf('57') === 0) t = t.slice(2);
+    if (!t) return { tel: '', error: '' };
+    if (t.length !== 10) return { tel: t, error: 'El celular ' + t + ' no tiene 10 dígitos. Escribe el real o déjalo vacío.' };
+    if (t.charAt(0) !== '3') return { tel: t, error: 'El celular ' + t + ' no empieza por 3. Escribe el real o déjalo vacío.' };
+    if (celularGenerico(t)) return { tel: t, error: 'El celular ' + t + ' es un número genérico. Escribe el real o déjalo vacío (sin celular, su contraseña será su documento).' };
+    return { tel: t, error: '' };
+  }
   var OBL_REF = /^(?:art[ií]culos?|arts?|numerales?|literal(?:es)?|incisos?|par[aá]grafos?|leyes|ley|decretos?|resoluci[oó]n(?:es)?|acuerdos?|ordenanzas?|circular(?:es)?|sentencias?|cap[ií]tulos?|[ií]tems?|puntos?|anexos?|cl[aá]usulas?|tomos?|folios?|p[aá]ginas?|p[aá]gs?|tablas?|cuadros?|figuras?|gr[aá]ficos?|versi[oó]n|fases?|etapas?|lotes?|grados?|niveles?|pisos?|calles?|carreras?|cras?|kras?|cll?|kr|manzanas?|mz|casas?|apto|apartamentos?|torres?|bloques?|comunas?|sectores?|zonas?|vigencias?|n[uú]meros?|n[uú]m|nros?|no|n|nº|n°)$/i;
   var OBL_LETRA = /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ¿¡"“«'(\[]/;
   var OBL_MAYUS = /[A-ZÁÉÍÓÚÜÑ¿¡"“«'(\[]/;
@@ -484,11 +506,12 @@
     function pintarVeredicto() {
       var html = '';
       if (V.tipo === 'NUEVO') {
-        html = '<p class="gs-ok"><b>Documento libre.</b> No está en CONTRATISTAS: es una persona nueva. Al guardar se le crea su contraseña y le llega por WhatsApp.</p>';
+        html = '<p class="gs-ok"><b>Documento libre.</b> No está en CONTRATISTAS: es una persona nueva. Con celular, la contraseña le llega por WhatsApp; sin celular, su contraseña será su documento.</p>';
       } else if (V.tipo === 'NUEVO_CONTRATO') {
         html = '<p class="gs-ok"><b>' + K.esc(nombre(V.nombre)) + '</b> ya trabajó con la Alcaldía (' +
           V.contratos.map(function (c) { return 'contrato ' + K.esc(c.contrato) + ' · ' + K.esc(titulo(c.secretaria)); }).join('; ') +
-          ', todos INACTIVOS). Es un <b>contrato nuevo</b>: se traen sus datos personales, su firma y la misma contraseña.</p>';
+          ', todos INACTIVOS). Es un <b>contrato nuevo</b>: se traen sus datos personales, su firma y la misma contraseña.</p>' +
+          (V.sinCelular ? '<p class="gs-alerta">No tiene contraseña ni celular registrado: su contraseña será su documento. Díselo al contratista.</p>' : '');
       } else {
         html = '<p class="gs-alerta"><b>' + K.esc(nombre(V.nombre)) + '</b> tiene contrato ACTIVO en: ' +
           V.activas.map(function (a) { return K.esc(titulo(a.secretaria)) + ' (contrato ' + K.esc(a.contrato) + ')'; }).join(', ') +
@@ -509,7 +532,7 @@
       if (V.tipo !== 'NUEVO') { inpNom.readOnly = true; inpNom.classList.add('campo--quieto'); }
       if (V.tipo === 'NUEVO') {
         var fila0 = K.nodo('<div class="campo-fila"></div>');
-        campoTexto(fila0, D, 'telefono', 'Celular', 'Ahí le llega la contraseña.', { numerico: 10, marcador: '3001234567' });
+        campoTexto(fila0, D, 'telefono', 'Celular (opcional)', 'Si lo tiene, ahí le llega la contraseña. Si no, déjalo vacío: su contraseña será su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
         campoTexto(fila0, D, 'correo', 'Correo (opcional)', '', { marcador: 'nombre@correo.com' });
         paso2.appendChild(fila0);
       } else if (V.telefono) {
@@ -549,13 +572,15 @@
       ev.preventDefault();
       var falta = faltaAlta(D, V);
       if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 7000); return; }
+      var cel = V.tipo === 'NUEVO' ? celularRevisar(D.telefono) : { error: '' };
+      if (cel.error) { K.aviso(cel.error, 'aviso', 8000); return; }
       var oblR = oblPartir(D.obligaciones);
       confirmarObligaciones(oblR).then(function (si) { if (si) registrar(oblR.lista); });
     });
 
     function registrar(obls) {
       var datos = {
-        documento: D.documento, nombre: D.nombre, telefono: D.telefono || '', correo: D.correo || '',
+        documento: D.documento, nombre: D.nombre, telefono: V.tipo === 'NUEVO' ? celularRevisar(D.telefono).tel : '', correo: D.correo || '',
         secretaria: D.secretaria, supervisor: D.supervisor, contrato: D.contrato, tipo: D.tipo,
         fechaContrato: D.fechaContrato, valor: String(K.aNumero(D.valor)), cdp: D.cdp,
         objeto: String(D.objeto || '').replace(/\s+/g, ' ').trim().toUpperCase(), obligaciones: obls,
@@ -563,6 +588,7 @@
         obligacionesTexto: String(D.obligaciones || ''), nObl: obls.length
       };
       ULTIMA = { vista: 'agregar', datos: datos };
+      var sinCel = V.tipo === 'NUEVO' ? !datos.telefono : !!V.sinCelular;
       guardar({
         titulo: 'Revisa antes de registrar',
         lista: [
@@ -571,14 +597,16 @@
           ['Secretaría', titulo(D.secretaria)], ['Supervisor(a)', nombre(D.supervisor)],
           ['Valor', K.pesos(D.valor)], ['CDP', D.cdp], ['Obligaciones', String(obls.length)]
         ],
-        nota: V.tipo === 'NUEVO' ? 'Se crea su carpeta de Drive y le llega la contraseña por WhatsApp.'
+        nota: sinCel ? 'Se crea su carpeta de Drive. ' + SIN_CEL_TXT
+            : V.tipo === 'NUEVO' ? 'Se crea su carpeta de Drive y le llega la contraseña por WhatsApp.'
                                  : 'Se crea su carpeta de Drive y le llega el aviso del contrato nuevo.',
         si: 'Registrar', accion: 'agregarContratista', datos: datos,
         cohete: 'Registrando el contrato', pasos: ['Revisando que no esté repetido', 'Creando su carpeta', 'Guardando']
       }).then(function (r) {
         if (!r) return;
         avisoEnvio(r);
-        K.aviso('Contrato ' + r.contrato + ' registrado.', 'ok', 4000);
+        if (r.sinCelular) K.aviso('Contrato ' + r.contrato + ' registrado. ' + SIN_CEL_TXT, 'aviso', 10000);
+        else K.aviso('Contrato ' + r.contrato + ' registrado.', 'ok', 4000);
         C.irA('contratista/' + encodeURIComponent(r.idContrato));
       });
     }
@@ -588,7 +616,6 @@
     var f = [];
     var anio = OPCIONES ? OPCIONES.vigencia : new Date().getFullYear();
     if (String(D.nombre || '').trim().split(/\s+/).length < 2) f.push('el nombre completo');
-    if (V.tipo === 'NUEVO' && !/^\d{10}$/.test(D.telefono || '')) f.push('el celular (10 dígitos)');
     if (!D.secretaria) f.push('la secretaría');
     if (!D.supervisor) f.push('el supervisor');
     if (!D.contrato) f.push('el N° de contrato');
@@ -899,7 +926,7 @@
       f.appendChild(quien);
       var inpN = campoTexto(f, D, 'nombre', 'Nombre completo', 'Como está en la cédula.', { mayus: true });
       var fila = K.nodo('<div class="campo-fila"></div>');
-      campoTexto(fila, D, 'telefono', 'Celular', 'Ahí le llega el aviso (y la contraseña si es nuevo).', { numerico: 10, marcador: '3001234567' });
+      campoTexto(fila, D, 'telefono', 'Celular (opcional)', 'Ahí le llega el aviso (y la contraseña si es nuevo). Sin celular, su contraseña será su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
       campoTexto(fila, D, 'correo', 'Correo (opcional)', '');
       f.appendChild(fila);
       f.appendChild(K.nodo('<h3 class="grupo__t">Las fechas</h3>'));
@@ -959,9 +986,10 @@
           V = v;
           if (v.tipo !== 'NUEVO') {
             D.nombre = v.nombre; inpN.value = v.nombre;
-            quien.innerHTML = '<p class="gs-ok"><b>' + K.esc(nombre(v.nombre)) + '</b> ya está en la Alcaldía: se traen sus datos personales y conserva su contraseña.</p>';
+            quien.innerHTML = '<p class="gs-ok"><b>' + K.esc(nombre(v.nombre)) + '</b> ya está en la Alcaldía: se traen sus datos personales y conserva su contraseña.</p>' +
+              (v.sinCelular ? '<p class="gs-alerta">No tiene contraseña ni celular registrado: su contraseña será su documento. Díselo al contratista.</p>' : '');
           } else {
-            quien.innerHTML = '<p class="gs-ok">Persona nueva: se le crea su contraseña y le llega por WhatsApp.</p>';
+            quien.innerHTML = '<p class="gs-ok">Persona nueva: con celular, la contraseña le llega por WhatsApp; sin celular, su contraseña será su documento.</p>';
           }
         })['catch'](function () {});
       });
@@ -975,7 +1003,6 @@
         var falta = [];
         if (!/^\d{6,10}$/.test(D.documento || '')) falta.push('el documento');
         if (String(D.nombre || '').trim().split(/\s+/).length < 2) falta.push('el nombre completo');
-        if (!/^\d{10}$/.test(D.telefono || '') && !(V && V.tipo !== 'NUEVO')) falta.push('el celular');
         if (!D.fechaCesion) falta.push('la fecha de la cesión');
         if (!D.inicioCesionario) falta.push('el inicio del cesionario');
         var fc = fechaDe(D.fechaCesion), fi = fechaDe(D.inicioCesionario);
@@ -985,18 +1012,21 @@
         if (P && vCes <= 0) falta.push('un valor que le deje algo al cesionario');
         if (P && !(+D.informesCesionario > 0)) falta.push('los informes del cesionario');
         if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 6000); return; }
+        var celC = celularRevisar(D.telefono);
+        if (celC.error) { K.aviso(celC.error, 'aviso', 8000); return; }
+        var sinCelC = V && V.tipo !== 'NUEVO' ? !!V.sinCelular : !celC.tel;
         K.piezas.confirmar.preguntar({
           titulo: '¿Ceder el contrato ' + c.contrato + '?',
           lista: [['Cede', nombre(c.nombre)], ['Recibe', nombre(D.nombre)], ['Documento', D.documento],
                   ['Fecha de cesión', D.fechaCesion], ['Cedente', D.informesCedente + ' informes · ' + K.pesos(vCed) + ' · hasta ' + (P.finCed || '')],
                   ['Cesionario', D.informesCesionario + ' informes · ' + K.pesos(vCes) + ' · desde ' + D.inicioCesionario]],
-          nota: 'Se crea la fila del cesionario y el plazo del cedente termina el ' + (P.finCed || '') + '. No se deshace desde la app.',
+          nota: 'Se crea la fila del cesionario y el plazo del cedente termina el ' + (P.finCed || '') + '. No se deshace desde la app.' + (sinCelC ? ' ' + SIN_CEL_TXT : ''),
           si: 'Sí, ceder', peligro: true
         }).then(function (ok) {
           if (!ok) return;
           K.ocupado = true;
           K.piezas.guardado.mientras(K.pedir('cesion', {
-            idContrato: c.idContrato, documento: D.documento, nombre: D.nombre, telefono: D.telefono || '',
+            idContrato: c.idContrato, documento: D.documento, nombre: D.nombre, telefono: celC.tel,
             correo: D.correo || '', fechaCesion: D.fechaCesion, inicioCesionario: D.inicioCesionario,
             informesCedente: D.informesCedente, valorCedente: String(vCed), informesCesionario: D.informesCesionario
           }, { ms: 90000 }), { titulo: 'Cediendo el contrato', pasos: ['Revisando las cuentas', 'Partiendo el plazo y el valor', 'Creando la fila y la carpeta del cesionario'] })
@@ -1005,7 +1035,7 @@
               if (r.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(r.contratistas);
               if (window.GESTION_EXTRA && window.GESTION_EXTRA.alGuardar) window.GESTION_EXTRA.alGuardar(r);
               avisoEnvio(r);
-              K.aviso('Contrato cedido a ' + nombre(r.cesionario) + ': entra con su propia fila.', 'ok', 6000);
+              K.aviso('Contrato cedido a ' + nombre(r.cesionario) + ': entra con su propia fila.' + (r.sinCelular ? ' ' + SIN_CEL_TXT : ''), r.sinCelular ? 'aviso' : 'ok', r.sinCelular ? 10000 : 6000);
               C.irA('contratista/' + encodeURIComponent(r.idContrato));
             }, function (e) { K.ocupado = false; mal(e); });
         });
@@ -1286,6 +1316,7 @@
   window.GESTION = {
     configurar: configurar, agregar: agregar, adicion: adicion, cesion: cesion, suspension: suspension, editar: editar,
     /* para las pruebas y la ayuda */
+    _celular: celularRevisar, _sinCelTxt: SIN_CEL_TXT,
     _letras: letras, _partir: partirObligaciones, _obl: oblPartir, _pegada: oblPegada, _confirmarObl: confirmarObligaciones, _particion: particion, _plazo: plazoEntre, _ultima: function () { return ULTIMA; }, _cambios: cambiosDe
   };
 }());
