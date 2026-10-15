@@ -188,6 +188,7 @@
     if (window.REPORTE) window.REPORTE.configurar(cOf);
     /* 06/10 · MIS REGISTROS: lo que hizo cada persona, para descargarlo */
     if (window.MISREGISTROS) window.MISREGISTROS.configurar({ app: app, errorCaja: errorCaja, nombreApp: 'Contratacion' });
+    if (window.AGENDA) window.AGENDA.configurar({ modo: 'CONTRATACION', app: app, errorCaja: errorCaja });   /* 15/10 */
     /* 26/09 · SOLICITUDES de los contratistas: el número del inicio sigue a la bandeja sin otro viaje */
     if (window.SOLICITUDES) window.SOLICITUDES.configurar({ app: app, puede: puede, irA: irA, errorCaja: errorCaja,
       alCambiar: function (n) { if (ARRANQUE) ARRANQUE.solicitudes = n; } });
@@ -286,6 +287,7 @@
     if (window.COMUS) window.COMUS.olvidar();
     if (window.REPORTE) window.REPORTE.olvidar();
     if (window.MISREGISTROS) window.MISREGISTROS.olvidar();
+    if (window.AGENDA) window.AGENDA.olvidar();
     if (window.SOLICITUDES) window.SOLICITUDES.olvidar();
     vistaInicio._reporte = false;
     K.piezas.sesion.salir();
@@ -313,6 +315,7 @@
     comunicados: function () { window.COMUS.vista(); },
     reporte: function () { window.REPORTE.vista(); },
     misregistros: function () { window.MISREGISTROS.vista(); },   /* 06/10 */
+    agenda: function () { window.AGENDA.vista(); },               /* 15/10 */
     /* 26/09 */
     solicitudes: function () { window.SOLICITUDES.vista(); }
   };
@@ -333,6 +336,7 @@
     comunicados: 'COMUNICADOS',
     reporte: 'REPORTE',
     misregistros: 'MIS REGISTROS',
+    agenda: 'AGENDA DE REVISIÓN',
     solicitudes: 'SOLICITUDES'
   };
 
@@ -344,6 +348,7 @@
     revisar: 'revisarCuentas', cuenta: 'revisarCuentas',
     requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte',
     misregistros: '*',
+    agenda: '*',   /* 15/10 · solo consulta */
     solicitudes: 'solicitudes'
   };
 
@@ -430,7 +435,9 @@
     if (puede('revisarCuentas')) {
       accRev = acceso('REVISAR CUENTAS', 'Las cuentas que el supervisor ya revisó: documentos, evidencias, notas y decisión',
         'img/procesos_de_cuenta.webp', function () { irA('revisar'); });
-      bloque('CUENTAS', [accRev]);
+      /* 15/10 · qué días llega cuánto trabajo y de quiénes */
+      bloque('CUENTAS', [accRev, accesoIcono('AGENDA DE REVISIÓN', 'Qué días llegan las cuentas a Supervisión y de quiénes, según el corte de cada contratista',
+        'calendario', function () { irA('agenda'); })]);
     }
 
     /* 5.4 · la oficina: pedir, informar y rendir cuentas */

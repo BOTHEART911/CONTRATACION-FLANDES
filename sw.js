@@ -60,6 +60,7 @@ var ARMAZON = [
   './js/reporte.js',
   './js/misregistros.js',
   './js/solicitudes.js',
+  './js/agenda.js',
   './img/icono-32.png',
   './img/icono-180.png',
   './img/icono-192.png',

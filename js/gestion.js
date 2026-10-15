@@ -749,7 +749,7 @@
     var iP = campoTexto(fila2, D, 'informesPrimario', 'Antes de la adición',
       primarioFijo ? 'Congelado: no cambia.' : 'Los pagos del contrato inicial.', { numerico: 2, alCambiar: calc });
     if (primarioFijo) { iP.readOnly = true; iP.classList.add('campo--quieto'); }
-    var iAd = campoTexto(fila2, D, 'informesAdicion', 'De la adición', 'Se propone según el valor.', { numerico: 2, alCambiar: calc });
+    var iAd = campoTexto(fila2, D, 'informesAdicion', 'Total de pagos de la adición', 'Se propone según el valor. Se suma al total de informes de sus cuentas.', { numerico: 2, alCambiar: calc });
     iAd.addEventListener('input', function () { D._tocadoInf = true; });
     f.appendChild(fila2);
     var totalInf = K.nodo('<p class="gs-calc gs-calc--total" aria-live="polite"></p>');
@@ -800,7 +800,7 @@
       if (!K.aNumero(D.valor)) falta.push('el valor');
       if (!new RegExp('^' + anio + '\\d{6}$').test(D.cdp || '')) falta.push('el CDP');
       if (!K.aNumero(D.informesPrimario)) falta.push('los informes antes de la adición');
-      if (!K.aNumero(D.informesAdicion)) falta.push('los informes de la adición');
+      if (!K.aNumero(D.informesAdicion)) falta.push('el total de pagos de la adición');
       if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 6000); return; }
       var datos = {
         idContrato: c.idContrato, inicio: D.inicio, fin: D.fin, valor: String(K.aNumero(D.valor)), cdp: D.cdp,
@@ -810,12 +810,17 @@
         titulo: (corrigiendo ? 'Corregir la ' : 'Registrar la ') + ord + ' adición',
         lista: [['Contratista', nombre(c.nombre)], ['Contrato', c.contrato], ['Periodo', D.inicio + ' a ' + D.fin],
                 ['Valor', K.pesos(D.valor)], ['CDP', D.cdp], ['Informes', D.informesPrimario + ' + ' + D.informesAdicion]],
-        nota: 'Al contratista le llega el aviso con lo que tiene que hacer (actualizar el RP de la adición).',
+        nota: 'Se actualizan sus cuentas: el total de informes en todas y el valor de la adición sumado al saldo de su última cuenta. Al contratista le llega el aviso (actualizar el RP de la adición).',
         si: 'Guardar', accion: 'adicion', datos: datos, cohete: 'Guardando la adición'
       }).then(function (r) {
         if (!r) return;
         avisoEnvio(r);
-        K.aviso((r.cual === 1 ? '1ª' : '2ª') + ' adición guardada. El contrato queda en ' + r.total + ' informes.', 'ok', 5000);
+        /* 15/10 · lo que quedó en CUENTAS (el CORE lo hace en el mismo viaje) */
+        var cu = r.cuentas, extra = '';
+        if (cu && cu.cuentas) extra = ' Sus ' + cu.cuentas + ' cuentas quedan en ' + r.total + ' informes' +
+          (cu.filaSaldo ? ' y el saldo de la cuenta ' + cu.cuentaSaldo + ' pasa a ' + K.pesos(cu.saldoNuevo) : '') + '.';
+        else if (cu) extra = ' Aún no tiene cuentas: la primera arranca con el valor final.';
+        K.aviso((r.cual === 1 ? '1ª' : '2ª') + ' adición guardada. El contrato queda en ' + r.total + ' informes.' + extra, 'ok', 8000);
         volverAFicha(c);
       });
     });
