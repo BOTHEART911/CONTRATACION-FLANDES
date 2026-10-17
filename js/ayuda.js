@@ -193,7 +193,8 @@
           } },
         { texto: '¿A nombre de quién sale el aviso?', responde: function () {
             var r = RV(), d = r && r._detalle(); if (!d) return 'La cuenta todavía está cargando.';
-            return 'Lo firmas **tú** (' + nombre(d.yo && d.yo.nombre) + ') · Oficina de Contratación: al contratista y al grupo del supervisor. Cuando devuelve el supervisor, firma él. El texto se edita en ADMIN › Configuración › Avisos.';
+            return 'Lo firmas **tú** (' + nombre(d.yo && d.yo.nombre) + ') · Oficina de Contratación: al contratista y al grupo del supervisor. Cuando devuelve el supervisor, firma él. El texto se edita en ADMIN › Configuración › Avisos.\n' +
+              'Si el administrador te marcó **SIN CONTRATO**, hacia afuera no sale tu nombre: el WhatsApp dice **Usuario Contratación** y el estado de cuenta y los informes dicen **Usuario revisor** (o el texto que ADMIN haya puesto). Por dentro queda que fuiste tú.';
           } }
       ]
     };
@@ -331,9 +332,17 @@
     };
   };
 
+  /* 17/10 · AGENDA DE REVISIÓN: la guía y las preguntas viven en js/agenda.js
+     (el mismo archivo en SUPERVISIÓN, CONTRATACIÓN y ADMIN) */
+  GUIAS.agenda = function () {
+    return window.AGENDA && window.AGENDA.ayuda ? window.AGENDA.ayuda()
+      : { guia: 'Aquí ves qué días te llega cuánto trabajo y de quiénes.', botones: [] };
+  };
+
   var TITULOS = { inicio: 'Tu inicio', misregistros: 'Mis registros',
                   revisar: 'Revisar cuentas', cuenta: 'Revisión de cuenta',
                   requerimientos: 'Requerimientos', comunicados: 'Comunicados', reporte: 'Reporte de Contratación', solicitudes: 'Solicitudes' };
+  TITULOS.agenda = 'Agenda de revisión';
 
   /* 10.2 · las guías de contratistas (lista, ficha, gestión y carga masiva) viven en
      js/ayuda-contratos.js, el mismo archivo de ADMIN-FLANDES */

@@ -137,7 +137,8 @@
 
   GUIAS.adicion = function () {
     return {
-      guia: 'La app decide si es la **1ª o la 2ª** adición. La 2ª va en su propia columna y ya no pisa el valor de la 1ª. Los informes del contrato inicial se **congelan** y se guarda el **total acumulado** (como ya lo tenía la hoja).',
+      guia: 'La app decide si es la **1ª o la 2ª** adición. La 2ª va en su propia columna y ya no pisa el valor de la 1ª. Los informes del contrato inicial se **congelan** y se guarda el **total acumulado** (como ya lo tenía la hoja). ' +
+            'Escribe el **Total de pagos de la adición** (la app lo propone según el valor): al guardar, se suma al total de informes de las cuentas del contrato y el valor adicionado se suma a su saldo. **El contratista ya no lo escribe**: le llega listo.',
       botones: [
         { texto: '¿Cuánto se puede adicionar?', responde: function () {
             var c = ULT().contrato || {}, inf = c.informes || {};
@@ -150,6 +151,12 @@
             if (!inf.primario) return 'Todavía no hay informes congelados: los pones tú en el formulario.';
             return 'Primario **' + inf.primario + '**' + (inf.adicion1 ? ' + 1ª adición **' + inf.adicion1 + '**' : '') +
               (inf.adicion2 ? ' + 2ª **' + inf.adicion2 + '**' : '') + ' = **' + inf.total + '** informes.';
+          } },
+        { texto: '¿Qué cambia en sus cuentas?', responde: function () {
+            return 'Al guardar la adición, la app actualiza la hoja de **CUENTAS** de ese contrato:\n' +
+              '· el **total de informes** sube con el **Total de pagos de la adición**;\n' +
+              '· el **valor adicionado** se suma al **nuevo saldo** de su última cuenta, para que la siguiente arranque con el saldo correcto.\n' +
+              'Las cuentas de otros contratos no se tocan. En la app del contratista el saldo es de solo lectura, así que no tiene que hacer nada.';
           } },
         { texto: '¿Y si me equivoqué?', responde: function () {
             var c = ULT().contrato || {}, inf = c.informes || {};
