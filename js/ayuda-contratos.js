@@ -82,6 +82,8 @@
         guia: 'Es la ficha de un contrato: la misma información que el contratista ve en su app, más sus datos personales y de pago. ' +
               'Si arriba sale el aviso amarillo, al contratista le faltan datos del contrato y sus formatos no salen completos.',
         botones: [
+          { texto: '¿Dónde veo los adjuntos de evidencia de una cuenta?', responde: function () {
+              return 'Cada obligación puede traer hasta **5 adjuntos** (PDF, Word o Excel), numerados por obligación: **1.1**, **1.2**… En **ADMIN** están en esta ficha, en cada cuenta de **Cuentas del contrato**: toca **Adjuntos de evidencia** y luego el que quieras; se abre en el visor y con las flechas pasas a los demás. En **Contratación** y **Supervisión** salen dentro de cada obligación, en la pestaña **Actividades** de la revisión.'; } },
           { texto: '¿Qué le falta a este contrato?', responde: function () {
               var d = CT() ? CT()._ficha() : null;
               if (!d) return 'La ficha todavía está cargando.';

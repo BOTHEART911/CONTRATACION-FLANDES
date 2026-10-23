@@ -2611,6 +2611,14 @@
 }
 .rv-arch__b:hover, .rv-arch__b:focus-visible { border-color: var(--k-marca); background: rgba(var(--k-marca-rgb), .1); }
 .rv-arch__b b { overflow-wrap: anywhere; }
+/* 23/10 · hasta 5 adjuntos por obligación: una pastilla por adjunto con su número */
+.rv-arch__lista { display: grid; gap: 6px; }
+.rv-arch__num {
+  flex: 0 0 auto; min-width: 34px; padding: 3px 7px; border-radius: 999px;
+  background: rgba(var(--k-marca-rgb), .12); color: var(--k-marca);
+  font-weight: 800; font-size: 12.5px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.rv-obl__et small { font-weight: 700; color: var(--k-apagado); margin-left: 4px; }
 
 /* 06/10 · MIS REGISTROS: la etiqueta de lo que se hizo, a la derecha de cada fila */
 .rg-der { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: 0 0 auto; }
