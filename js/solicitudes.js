@@ -449,6 +449,8 @@
     vista: vista,
     cargar: cargar,
     olvidar: function () { DATA = null; K.guardar.borrar(FILTRO_K); F = leerFiltro(); },
+    /* 24/10 · el asistente lleva a la bandeja con el filtro ya puesto (por responder, accesos) */
+    filtrar: function (o) { o = o || {}; F = { estado: o.estado === undefined ? 'PENDIENTE' : o.estado, origen: o.origen || '', busca: '' }; guardarFiltro(); },
     _datos: function () { return DATA; },
     _grupo: grupoEstado
   };

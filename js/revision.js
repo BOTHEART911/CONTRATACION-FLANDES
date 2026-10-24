@@ -1760,6 +1760,8 @@
     recibir: recibir, cargar: cargar, lista: lista, detalle: detalle,
     olvidar: function () { LISTA = null; D = null; B = null; K.guardar.borrar(FILTRO_K); F = leerFiltro(); if (window.DOCS_REV) window.DOCS_REV.olvidar(); },
     pendientes: function () { return LISTA ? LISTA.cuentas.length : null; },
+    /* 24/10 · el asistente lleva a la lista con un filtro ya puesto (cómo va la revisión) */
+    filtrar: function (o) { o = o || {}; F = { rev: o.rev || '', sec: '', busca: '' }; guardarFiltro(); },
     salir: salir,
     /* para Insights */
     _cuentas: cuentas,
