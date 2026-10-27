@@ -52,6 +52,7 @@ var ARMAZON = [
   './js/ayuda-contratos.js',
   './plantillas/PLANTILLA_CARGA_MASIVA_CONTRATISTAS.xlsx',
   './js/rehacer.js',
+  './js/concepto.js',
   './js/revision.js',
   /* 5.4 */
   './js/docs-revision.js',

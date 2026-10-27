@@ -561,7 +561,9 @@
     if (!D.cuenta.porRevisar) return Promise.resolve(null);
     var p = K.pedir('revisionGuardar', cuerpoGuardar(), { ms: 60000 });
     var hecho = function (r) {
+      var cAntes = D.revision && D.revision.concepto;   /* 27/10 · el concepto no viaja en revisionGuardar */
       D.revision = r.revision;
+      if (D.revision && !D.revision.concepto && cAntes) D.revision.concepto = cAntes;
       K.guardar.borrar(borradorK());
       var pos = B.posicion;
       iniciarBitacora();
@@ -644,6 +646,11 @@
         '<span><b>' + K.esc(nombre(r.por)) + '</b> empezó esta revisión el ' + K.esc(r.desde) +
         (r.actualizadaPor ? ' (última vez: ' + K.esc(nombre(r.actualizadaPor)) + ', ' + K.esc(r.actualizada) + ')' : '') +
         '. Solo es un aviso: puedes seguir. Sus notas se quedan y las tuyas se suman.</span></p>'));
+    }
+    /* 27/10 · los conceptos de los revisores y sus INFORMES DE REVISIÓN */
+    if (window.CONCEPTO) {
+      if (D.conceptoSup) caja.appendChild(tarjetaConcepto(D.conceptoSup, 'SUPERVISION', 'Revisor de Supervisión'));
+      if (r && r.concepto) caja.appendChild(tarjetaConcepto(r.concepto, 'CONTRATACION', 'Revisor de Contratación'));
     }
     if (B.recuperada) {
       caja.appendChild(K.nodo('<p class="kit-tarjeta rv-aviso rv-aviso--ok">' + K.icono('info', 18) +
@@ -1509,12 +1516,18 @@
       (B.sucia ? ' <i class="rv-barra__punto" aria-label="Hay cambios sin guardar"></i>' : '') + '</button>');
     g.addEventListener('click', function () { guardarRevision(false); });
     BARRA.appendChild(g);
+    /* 27/10 · el revisor que no decide deja su concepto (sugiere aprobar o devolver) y se arma su informe */
+    if (!D.puedeDecidir && D.v27) {
+      var v = K.nodo('<button type="button" class="kit-btn rv-barra__g sp-barra__vb">' + K.icono('check', 16) + ' Visto bueno o inconsistencia</button>');
+      v.addEventListener('click', darConcepto);
+      BARRA.appendChild(v);
+    }
     if (D.puedeDecidir) {
       var d = K.nodo('<button type="button" class="kit-btn kit-btn--marca rv-barra__d">' + K.icono('check', 16) + ' Tomar decisión</button>');
       d.addEventListener('click', tomarDecision);
       BARRA.appendChild(d);
     } else {
-      BARRA.appendChild(K.nodo('<p class="rv-barra__nota">Tu usuario revisa y deja notas. Aprobar o devolver lo decide quien tiene ese permiso.</p>'));
+      BARRA.appendChild(K.nodo('<p class="rv-barra__nota">Tu usuario revisa, deja notas y da su visto bueno. Aprobar o devolver lo decide quien tiene ese permiso.</p>'));
     }
   }
 
@@ -1551,6 +1564,109 @@
   }
 
 
+  /* ══════════════ 27/10 · CONCEPTO DEL REVISOR E INFORME DE REVISIÓN ══════════════ */
+
+  function normalizarConcepto(c, app) {
+    if (!c) return c;
+    if (!c.sugiere) c.sugiere = K.norm(c.tipo) === 'VISTO BUENO' ? 'APROBAR' : 'DEVOLVER';
+    if (!(c.informe && c.informe.id)) { c.informe = null; c.informePendiente = true; }
+    if (!c.app) c.app = app || 'CONTRATACION';
+    return c;
+  }
+
+  function tarjetaConcepto(c, app, titulo) {
+    normalizarConcepto(c, app);
+    /* el informe del revisor de Supervisión se pide con app; el de Contratación, sin ella */
+    return window.CONCEPTO.tarjeta(c, D.cuenta, leer, { app: app === 'SUPERVISION' ? 'SUPERVISION' : '', titulo: titulo });
+  }
+
+  function darConcepto() {
+    var cuerpo = K.nodo('<div class="rv-dec"></div>');
+    var op = K.nodo('<div class="rv-dec__ops" role="radiogroup" aria-label="Concepto"></div>');
+    var bV = K.nodo('<button type="button" class="rv-dec__op rv-dec__op--ok" role="radio" aria-checked="false">' + K.icono('check', 26) +
+      '<b>Visto bueno · sugiero aprobar</b><small>Las actividades y los soportes están bien</small></button>');
+    var bI = K.nodo('<button type="button" class="rv-dec__op rv-dec__op--malo" role="radio" aria-checked="false">' + K.icono('aviso', 26) +
+      '<b>Con inconsistencia · sugiero devolver</b><small>Hay algo que quien decide debe mirar</small></button>');
+    op.appendChild(bV); op.appendChild(bI);
+    cuerpo.appendChild(op);
+    cuerpo.appendChild(K.nodo('<label class="rv-dec__et" for="ct-nota">Nota para quien decide · <b>interna</b> (el contratista no la ve)</label>'));
+    var ta = K.nodo('<textarea id="ct-nota" class="rv-editor__ta" rows="4" maxlength="2000" placeholder="Opcional con visto bueno. Con inconsistencia, di cuál es (o déjala en la bitácora)."></textarea>');
+    cuerpo.appendChild(ta);
+    var nObs = observaciones().length;
+    if (nObs) cuerpo.appendChild(K.nodo('<p class="rv-dec__txt rv-dec__obs">' + K.icono('enviar', 15) + '<span>Dejaste <b>' + nObs +
+      (nObs === 1 ? ' observación' : ' observaciones') + ' para el contratista</b>. Si se devuelve la cuenta, le salen ya escritas en el motivo.</span></p>'));
+    cuerpo.appendChild(K.nodo('<p class="rv-dec__txt">La cuenta <b>no cambia de estado</b>: tu concepto queda con tu nombre, la fecha y la hora, y se arma tu <b>informe de revisión</b> (PDF interno, no le llega al contratista).</p>'));
+    var eleccion = '';
+    function elegir(e) {
+      eleccion = e;
+      bV.setAttribute('aria-checked', String(e === 'VISTO BUENO'));
+      bI.setAttribute('aria-checked', String(e === 'CON INCONSISTENCIA'));
+      m.botones[1].disabled = false;
+    }
+    bV.addEventListener('click', function () { K.vibrar(6); elegir('VISTO BUENO'); });
+    bI.addEventListener('click', function () { K.vibrar(6); elegir('CON INCONSISTENCIA'); });
+    var m = modal({
+      titulo: 'Tu concepto · cuenta ' + D.cuenta.informe, cuerpo: cuerpo, ancha: true,
+      botones: [
+        { texto: 'Cancelar', al: function () { m.cerrar(); } },
+        { texto: 'Guardar concepto', marca: true, al: function () { confirmar(); } }
+      ]
+    });
+    m.botones[1].disabled = true;
+    function confirmar() {
+      if (!eleccion) return;
+      var nota = ta.value.replace(/\r/g, '').trim();
+      if (eleccion === 'CON INCONSISTENCIA' && nota.length < 10 && !B.notas.length) {
+        K.aviso('Escribe cuál es la inconsistencia (aquí o en la bitácora).', 'aviso', 5000);
+        ta.focus();
+        return;
+      }
+      var cuerpoC = cuerpoGuardar();
+      cuerpoC.concepto = eleccion;
+      cuerpoC.nota = nota;
+      m.cerrar();
+      K.piezas.guardado.mientras(K.pedir('revisionConcepto', cuerpoC, { ms: 60000 }), {
+        titulo: eleccion === 'VISTO BUENO' ? 'Guardando tu visto bueno' : 'Guardando la inconsistencia',
+        sub: 'La cuenta no cambia de estado.',
+        pasos: ['Guardando tus notas…', 'Dejando tu concepto con fecha y hora…', 'Casi listo…'],
+        listo: { titulo: eleccion === 'VISTO BUENO' ? 'Visto bueno guardado' : 'Inconsistencia guardada', paso: 'Quien decide lo ve arriba de la cuenta' }
+      }).then(function (r) {
+        D.revision = r.revision;
+        K.guardar.borrar(borradorK());
+        var pos = B.posicion;
+        iniciarBitacora();
+        B.posicion = pos;
+        LISTA = null;
+        repintarTodo();
+        var c = D.revision && D.revision.concepto;
+        if (c && window.CONCEPTO) {
+          normalizarConcepto(c, 'CONTRATACION');
+          var cuR = D.cuenta;
+          window.CONCEPTO.asegurar(c, cuR, { avisarError: true, alListo: function () {
+            K.aviso('Tu informe de revisión de la cuenta ' + cuR.informe + ' está listo.', 'ok', 5000);
+            if (D && D.cuenta.fila === cuR.fila && CAJA && CAJA.isConnected) repintarTodo();
+          } });
+        }
+      }, function (e) { K.aviso((e && e.message) || 'No se pudo guardar el concepto.', 'malo', 8000); });
+    }
+  }
+
+  /* 27/10 · tras decidir: la cuenta sale de la lista que ya está en memoria (no se recarga) */
+  function parcharLista(fila) {
+    if (!LISTA || !LISTA.cuentas) return;
+    LISTA.cuentas = LISTA.cuentas.filter(function (c) { return c.fila !== fila; });
+    if (C.alCambiar) { try { C.alCambiar(LISTA.cuentas.length); } catch (e) {} }
+  }
+
+  /* 27/10 · los avisos de la decisión salen DESPUÉS de responder; si se pierde la red, el reloj del CORE los manda */
+  function mandarAvisos(cola, estado) {
+    K.pedir('revisionAvisos', { cola: cola }, { ms: 90000 }).then(function (a) {
+      if (a && a.ok === false && a.errores && a.errores.length) {
+        K.aviso('Quedó ' + String(estado || '').toLowerCase() + ', pero un aviso no salió: ' + a.errores[0] + '.', 'aviso', 9000);
+      }
+    }, function () {});
+  }
+
   function tomarDecision() {
     var cu = D.cuenta;
     var p = puntos(), faltan = p.filter(function (k) { return !B.vistos[k]; });
@@ -1578,6 +1694,15 @@
       cuerpo.appendChild(K.nodo('<p class="rv-aviso rv-aviso--mini rv-aviso--malo rv-dec__sug">' + K.icono('aviso', 16) + '<span>Dejaste ' +
         (nObsDec === 1 ? '<b>1 observación' : '<b>' + nObsDec + ' observaciones') + ' para el contratista</b>: lo indicado es <b>devolver</b> la cuenta.</span></p>'));
     }
+    /* 27/10 · arriba, lo que sugieren los revisores y sus informes */
+    var concC = D.revision && D.revision.concepto;
+    if (window.CONCEPTO) {
+      if (concC) cuerpo.insertBefore(tarjetaConcepto(concC, 'CONTRATACION', 'Revisor de Contratación'), cuerpo.firstChild);
+      if (D.conceptoSup) cuerpo.insertBefore(tarjetaConcepto(D.conceptoSup, 'SUPERVISION', 'Revisor de Supervisión'), cuerpo.firstChild);
+    }
+    var contraSug = !!(concC && normalizarConcepto(concC, 'CONTRATACION').sugiere === 'DEVOLVER');
+    var taContra = null;
+    B.decision27 = B.decision27 || {};
     cuerpo.appendChild(op);
     var zona = K.nodo('<div class="rv-dec__zona"></div>');
     cuerpo.appendChild(zona);
@@ -1590,10 +1715,20 @@
       bA.setAttribute('aria-checked', String(e === 'APROBAR'));
       bD.setAttribute('aria-checked', String(e === 'DEVOLVER'));
       zona.innerHTML = '';
+      taContra = null;
       if (e === 'APROBAR') {
         zona.appendChild(K.nodo('<p class="rv-dec__txt">Se aprueba la <b>cuenta ' + cu.informe + ' de ' + K.esc(cu.total || '—') + '</b> de <b>' +
           K.esc(nombre(cu.nombre)) + '</b>. Le llega el aviso para hacer el plan de pagos, firmado por <b>' + K.esc(nombre(D.yo.nombre)) + '</b> · Oficina de Contratación.</p>'));
         avisoObsAprobar(zona);
+        /* 27/10 · el revisor de Contratación sugirió DEVOLVER: una línea de por qué se aprueba (queda en la traza) */
+        if (contraSug) {
+          zona.appendChild(K.nodo('<label class="cpt__contra" for="rv-contra">' + K.icono('aviso', 16) + '<span>' + K.esc(nombre(concC.por)) +
+            ' sugirió <b>devolver</b>. ¿Por qué la apruebas? Una línea, obligatoria: queda en la traza.</span></label>'));
+          taContra = K.nodo('<input id="rv-contra" class="rv-editor__ta cpt__contra-in" maxlength="300" autocomplete="off" placeholder="Una línea, mínimo 10 caracteres">');
+          if (B.decision27.contra) taContra.value = B.decision27.contra;
+          taContra.addEventListener('input', function () { B.decision27.contra = taContra.value; });
+          zona.appendChild(taContra);
+        }
       } else {
         zona.appendChild(K.nodo('<label class="rv-dec__et" for="rv-motivo">Motivo de la devolución · <b>lo lee el contratista</b></label>'));
         ta = K.nodo('<textarea id="rv-motivo" class="rv-editor__ta rv-dec__motivo" rows="8" maxlength="3000" placeholder="Qué debe corregir, uno por línea"></textarea>');
@@ -1664,9 +1799,17 @@
         if (ta) ta.focus();
         return;
       }
+      var contra = taContra ? taContra.value.replace(/\s+/g, ' ').trim() : '';
+      if (eleccion === 'APROBAR' && contraSug && contra.length < 10) {
+        K.aviso('El revisor sugirió devolver: escribe en una línea por qué la apruebas.', 'aviso', 6000);
+        if (taContra) taContra.focus();
+        return;
+      }
       var cuerpoD = cuerpoGuardar();
       cuerpoD.decision = eleccion;
       cuerpoD.motivo = motivo;
+      cuerpoD.v27 = 1;   /* el CORE responde sin la lista y deja los avisos en cola */
+      if (eleccion === 'APROBAR' && contra) cuerpoD.motivoContra = contra;
       m.cerrar();
       K.ocupado = true;
       var devolver = eleccion === 'DEVOLVER';
@@ -1681,12 +1824,14 @@
         K.guardar.borrar(borradorK());
         B.sucia = false;
         if (r && r.lista) recibir(r.lista);
+        else if (r) parcharLista(cu.fila);   /* 27/10 · se parcha la lista en memoria */
         if (r && r.aviso && r.aviso.ok === false) {
           K.aviso('Quedó ' + r.estado.toLowerCase() + ', pero el aviso al contratista no salió: ' + (r.aviso.error || 'sin canal') + '.', 'aviso', 9000);
         }
         if (r && r.grupo && r.grupo.ok === false) {
           K.aviso('El aviso al grupo del supervisor no salió: ' + (r.grupo.error || '') + '.', 'aviso', 9000);
         }
+        if (r && r.cola) mandarAvisos(r.cola, r.estado);
         C.irA('revisar');
       }, function (e) {
         K.ocupado = false;
