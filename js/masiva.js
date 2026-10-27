@@ -34,7 +34,9 @@
     [/^DOCUMENTO/, 'documento'], [/^NOMBRE/, 'nombre'], [/^(N|NO|NRO|NUMERO)( DE)? CONTRATO$|^CONTRATO$/, 'contrato'],
     [/^TIPO/, 'tipo'], [/^FECHA/, 'fechaContrato'], [/^VALOR/, 'valor'], [/^CDP/, 'cdp'], [/^OBJETO/, 'objeto'],
     [/^SECRETARIA/, 'secretaria'], [/^SUPERVISOR/, 'supervisor'], [/^CELULAR|^TELEFONO/, 'telefono'], [/^CORREO/, 'correo'],
-    [/^OBLIGACIONES/, 'obligaciones']
+    [/^OBLIGACIONES/, 'obligaciones'],
+    /* 27/10 · opcional: la cantidad de pagos (informes) del contrato */
+    [/^PAGOS|^CANTIDAD (DE )?PAGOS|^TOTAL (DE )?(PAGOS|INFORMES)/, 'pagos']
   ];
 
   function configurar(o) { C = o || {}; }
@@ -128,6 +130,7 @@
       x.cdp = texto(x.cdp).replace(/\D/g, '');
       x.valor = typeof x.valor === 'number' ? Math.round(x.valor) : texto(x.valor).replace(/[^\d]/g, '');
       x.telefono = texto(x.telefono).replace(/\D/g, '');
+      x.pagos = typeof x.pagos === 'number' ? String(Math.round(x.pagos)) : texto(x.pagos).replace(/\D/g, '');
       x.fechaContrato = fechaExcel(x.fechaContrato);
       ['nombre', 'tipo', 'objeto', 'secretaria', 'supervisor', 'correo'].forEach(function (k) { x[k] = texto(x[k]); });
       var lista = [], avisos = [];
@@ -226,8 +229,11 @@
     t.querySelector('p').textContent = r.ok
       ? (r.idContrato ? 'Registrado' + (r.nuevo === false ? ' (ya había estado: conserva sus datos y su contraseña)' : '') : (r.tipo || 'Listo para registrar') + (r.valor ? ' · ' + pesos(r.valor) : ''))
       : (r.error || 'No pasa');
-    /* 07/10 · sin celular real: su contraseña será su documento */
-    if (r.ok && r.sinCelular) t.querySelector('.ms-f__txt').appendChild(K.nodo('<p class="ms-f__obl ms-f__obl--ojo">Sin celular: su contraseña ' + (r.idContrato ? 'es' : 'será') + ' su documento. Díselo al contratista.</p>'));
+    /* 27/10 · sin celular no le llega el mensaje: hay que decirle cómo entra */
+    if (r.ok && r.sinCelular) t.querySelector('.ms-f__txt').appendChild(K.nodo('<p class="ms-f__obl ms-f__obl--ojo">Sin celular: no le llega el mensaje. ' +
+      (r.claveEsDocumento === false ? 'Entra con la misma contraseña que ya usa.' : 'Su contraseña ' + (r.idContrato ? 'es' : 'será') + ' su documento: díselo al contratista.') + '</p>'));
+    var fp = porFilaLeida(r.fila);
+    if (r.ok && !r.idContrato && fp && !fp.pagos) t.querySelector('.ms-f__txt').appendChild(K.nodo('<p class="ms-f__obl">Sin PAGOS (INFORMES): el contratista lo escribirá en su primer borrador.</p>'));
     var fx = porFilaLeida(r.fila), av = AVISOS_OBL[r.fila] || [];
     if (fx && !r.idContrato) {
       var o = K.nodo('<p class="ms-f__obl' + (av.length ? ' ms-f__obl--ojo' : '') + '"></p>');
@@ -258,7 +264,7 @@
     z.appendChild(s);
     if (malas.length) s.appendChild(K.nodo('<p class="formulario__nota formulario__nota--fuerte">Las que no pasan no se registran. Corrígelas en el Excel y vuelve a cargarlo: las que ya estén registradas saldrán como "ya está registrado".</p>'));
     if (buenas.length) {
-      var av = K.nodo('<label class="op-check cf-sw"><input type="checkbox" checked><span>Avisar a cada contratista (su contraseña si es nuevo y el aviso del contrato). Sin marcar se registra <b>en silencio</b>.</span></label>');
+      var av = K.nodo('<label class="op-check cf-sw"><input type="checkbox" checked><span>Avisar a cada contratista (un solo mensaje con el aviso del contrato y su acceso). Sin marcar se registra <b>en silencio</b>.</span></label>');
       s.appendChild(av);
       var bt = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('check', 16) + ' Registrar ' + buenas.length + (buenas.length === 1 ? ' contrato' : ' contratos') + '</button>');
       if (buenas.length > TANDA) s.appendChild(K.nodo('<p class="formulario__nota">Son más de ' + TANDA + ': se registran por tandas de ' + TANDA + ' (cada contrato crea su carpeta en Drive). No cierres la app.</p>'));
@@ -281,8 +287,8 @@
         var sinCel = buenas.filter(function (x) { return x.sinCelular; }).length;
         K.piezas.confirmar.preguntar({
           titulo: '¿Registrar ' + buenas.length + (buenas.length === 1 ? ' contrato?' : ' contratos?'),
-          texto: (av.querySelector('input').checked ? 'A cada uno le llega el aviso (y su contraseña si es nuevo).' : 'En silencio: no le llega nada a nadie. Los nuevos tendrán que usar "Olvidé mi contraseña".') +
-            (sinCel ? ' ' + sinCel + (sinCel === 1 ? ' no tiene celular: su contraseña será su documento. Díselo.' : ' no tienen celular: su contraseña será su documento. Díselo a cada uno.') : ''),
+          texto: (av.querySelector('input').checked ? 'A cada uno le llega, en los minutos siguientes, un solo mensaje con el aviso del contrato y su acceso (si es nuevo, su contraseña inicial es su documento).' : 'En silencio: no le llega nada a nadie. Los nuevos entran con su documento como contraseña.') +
+            (sinCel ? ' ' + sinCel + (sinCel === 1 ? ' no tiene celular: no le llega el mensaje. Díselo.' : ' no tienen celular: no les llega el mensaje. Díselo a cada uno.') : ''),
           si: 'Registrar'
         }).then(function (si) { if (si) registrar(z, buenas, av.querySelector('input').checked); });
       };

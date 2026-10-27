@@ -122,7 +122,7 @@
 
   GUIAS.agregar = function () {
     return {
-      guia: 'Primero **el documento**: la app te dice si es una persona nueva, alguien que ya trabajó con la Alcaldía (se traen sus datos y su contraseña) o alguien con contrato **activo** (solo se deja en otra secretaría). Después llenas el contrato; el valor en letras y el conteo de obligaciones salen solos.',
+      guia: 'Primero **el documento**: la app te dice si es una persona nueva, alguien que ya trabajó con la Alcaldía (se traen sus datos y su contraseña) o alguien con contrato **activo** (solo se deja en otra secretaría). Después llenas el contrato con su **cantidad de pagos (informes)**, que el contratista verá como "1 de N" sin escribirla; el valor en letras y el conteo de obligaciones salen solos.',
       botones: [
         { texto: '¿Cómo pego las obligaciones?', responde: function () {
             return 'Cópialas del clausulado **con su numeración** (1. 2. 3. …). La app las separa por el número, no por los saltos de línea, y te muestra cuántas contó antes de guardar. Máximo 26.';
@@ -131,7 +131,7 @@
             return 'Que tenga **10 dígitos**, que empiece por el año de la vigencia y que **no esté usado** en ningún otro contrato (ni como CDP inicial ni de adición). Escribes solo el final: el año lo pone la app.';
           } },
         { texto: '¿Qué le llega al contratista?', responde: function () {
-            return 'Si es nuevo, su **contraseña** por WhatsApp (se guarda cifrada) y el aviso del contrato. Si ya había trabajado, solo el aviso: conserva la contraseña que tenía.';
+            return 'Un **solo mensaje** por WhatsApp con el aviso del contrato y su acceso: si es nuevo, entra con su documento, que también es su **contraseña inicial** (luego la cambia). Si ya había trabajado, conserva la contraseña que tenía.';
           } }
       ]
     };

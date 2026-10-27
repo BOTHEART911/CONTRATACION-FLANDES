@@ -494,7 +494,7 @@ window.ASISTENTE_BASE = [
 "aviso al contratista nuevo",
 "contratista sin celular"
 ],
-"respuesta": "Si es nuevo, su **contraseña** por WhatsApp (se guarda cifrada) y el aviso del contrato. Si ya había trabajado, solo el aviso y conserva su contraseña. Sin celular, su contraseña es su **documento**.",
+"respuesta": "Le llega **un solo mensaje** por WhatsApp con el aviso del contrato y su acceso. Si es nuevo, su **contraseña inicial es su documento** (luego la cambia); si ya había trabajado, conserva su contraseña. Sin celular no le llega el mensaje: díselo tú.",
 "accion": "",
 "estado": "",
 "activo": true,

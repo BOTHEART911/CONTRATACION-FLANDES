@@ -231,7 +231,7 @@
   /* 07/10 · CELULAR DEL CONTRATISTA: el real o vacío, nunca un genérico.
      Misma regla que FC_celularRevisar_ (Contratacion.gs del CORE). Sin
      celular, la contraseña inicial es su documento y no sale WhatsApp. */
-  var SIN_CEL_TXT = 'Sin celular: su contraseña será su documento. Díselo al contratista.';
+  var SIN_CEL_TXT = 'Sin celular: no le llega el mensaje. Su contraseña será su documento: díselo al contratista.';
   function celularGenerico(t) {
     var r = t.slice(1);
     if (/^(\d)\1+$/.test(r)) return true;
@@ -439,12 +439,24 @@
         titulo: o.cohete, sub: o.sub || 'No cierres la app.', pasos: o.pasos
       }).then(function (r) {
         K.ocupado = false;
-        if (r && r.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(r.contratistas);
+        /* 27/10 · el alta devuelve solo su fila (soloFila): se parcha la lista en memoria */
+        if (r && r.contratista && window.CONTRATISTAS && window.CONTRATISTAS.parchar) window.CONTRATISTAS.parchar(r.contratista);
+        else if (r && r.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(r.contratistas);
         /* 10.2 · ADMIN apunta la bitácora que trae la respuesta */
         if (r && window.GESTION_EXTRA && window.GESTION_EXTRA.alGuardar) window.GESTION_EXTRA.alGuardar(r);
         return r;
       }, function (e) { K.ocupado = false; mal(e); return null; });
     });
+  }
+
+  /* 27/10 · el aviso del contrato nuevo queda en cola en el CORE: se manda de fondo apenas
+     llega la respuesta (no hace esperar a nadie). Si la red falla, el reloj lo manda en minutos. */
+  function avisosDeFondo(r) {
+    var cola = r && r.aviso && r.aviso.cola;
+    if (!cola) return;
+    K.pedir('altaAvisos', { cola: cola }, { ms: 90000 }).then(function (x) {
+      if (x && x.ok === false) K.aviso('Quedó registrado, pero el aviso al contratista no salió: ' + (x.errores || []).join('; ') + '.', 'aviso', 9000);
+    }, function () { /* lo manda el reloj */ });
   }
 
   function avisoEnvio(r) {
@@ -506,7 +518,7 @@
     function pintarVeredicto() {
       var html = '';
       if (V.tipo === 'NUEVO') {
-        html = '<p class="gs-ok"><b>Documento libre.</b> No está en CONTRATISTAS: es una persona nueva. Con celular, la contraseña le llega por WhatsApp; sin celular, su contraseña será su documento.</p>';
+        html = '<p class="gs-ok"><b>Documento libre.</b> No está en CONTRATISTAS: es una persona nueva. Su contraseña inicial será su número de documento; con celular le llega <b>un solo mensaje</b> con su acceso.</p>';
       } else if (V.tipo === 'NUEVO_CONTRATO') {
         html = '<p class="gs-ok"><b>' + K.esc(nombre(V.nombre)) + '</b> ya trabajó con la Alcaldía (' +
           V.contratos.map(function (c) { return 'contrato ' + K.esc(c.contrato) + ' · ' + K.esc(titulo(c.secretaria)); }).join('; ') +
@@ -532,7 +544,7 @@
       if (V.tipo !== 'NUEVO') { inpNom.readOnly = true; inpNom.classList.add('campo--quieto'); }
       if (V.tipo === 'NUEVO') {
         var fila0 = K.nodo('<div class="campo-fila"></div>');
-        campoTexto(fila0, D, 'telefono', 'Celular (opcional)', 'Si lo tiene, ahí le llega la contraseña. Si no, déjalo vacío: su contraseña será su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
+        campoTexto(fila0, D, 'telefono', 'Celular (opcional)', 'Si lo tiene, ahí le llega el mensaje con su acceso. Si no, déjalo vacío. Su contraseña inicial es su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
         campoTexto(fila0, D, 'correo', 'Correo (opcional)', '', { marcador: 'nombre@correo.com' });
         paso2.appendChild(fila0);
       } else if (V.telefono) {
@@ -551,6 +563,8 @@
       campoLista(paso2, D, 'tipo', 'Tipo de contrato', '',
         OPCIONES.tipos.map(function (t) { return { valor: t, texto: t.charAt(0) + t.slice(1).toLowerCase() }; }));
       campoPesos(paso2, D, 'valor', 'Valor del contrato', 'El valor en letras se escribe solo.');
+      /* 27/10 · el total de informes lo fija Contratación: el contratista ve "1 de N" sin escribirlo */
+      campoTexto(paso2, D, 'pagos', 'Cantidad de pagos (informes)', 'Los informes o pagos que fija el clausulado, de 1 a 24. El contratista lo verá desde su primer informe y no tendrá que escribirlo.', { numerico: 2, marcador: 'Ej: 10' });
       campoCodigo(paso2, D, 'cdp', 'CDP', 'Escribe el final del CDP; el año lo pone la app. No puede estar usado en otro contrato.', anio);
       campoTexto(paso2, D, 'objeto', 'Objeto del contrato', 'Se guarda en mayúsculas y en un solo párrafo.', { area: true, filas: 3 });
 
@@ -582,8 +596,9 @@
       var datos = {
         documento: D.documento, nombre: D.nombre, telefono: V.tipo === 'NUEVO' ? celularRevisar(D.telefono).tel : '', correo: D.correo || '',
         secretaria: D.secretaria, supervisor: D.supervisor, contrato: D.contrato, tipo: D.tipo,
-        fechaContrato: D.fechaContrato, valor: String(K.aNumero(D.valor)), cdp: D.cdp,
+        fechaContrato: D.fechaContrato, valor: String(K.aNumero(D.valor)), cdp: D.cdp, pagos: String(K.aNumero(D.pagos)),
         objeto: String(D.objeto || '').replace(/\s+/g, ' ').trim().toUpperCase(), obligaciones: obls,
+        soloFila: true,   /* 27/10 · vuelve solo su fila (se parcha la lista), no la lista entera */
         /* 07/10 · el CORE las vuelve a partir con la misma regla y compara */
         obligacionesTexto: String(D.obligaciones || ''), nObl: obls.length
       };
@@ -595,17 +610,20 @@
           ['Contratista', nombre(D.nombre)], ['Documento', D.documento],
           ['Contrato', ('00' + D.contrato).slice(-3) + ' · ' + D.fechaContrato],
           ['Secretaría', titulo(D.secretaria)], ['Supervisor(a)', nombre(D.supervisor)],
-          ['Valor', K.pesos(D.valor)], ['CDP', D.cdp], ['Obligaciones', String(obls.length)]
+          ['Valor', K.pesos(D.valor)], ['Pagos (informes)', String(K.aNumero(D.pagos))], ['CDP', D.cdp], ['Obligaciones', String(obls.length)]
         ],
+        /* 27/10 · un solo mensaje: el del contrato, con su acceso */
         nota: sinCel ? 'Se crea su carpeta de Drive. ' + SIN_CEL_TXT
-            : V.tipo === 'NUEVO' ? 'Se crea su carpeta de Drive y le llega la contraseña por WhatsApp.'
-                                 : 'Se crea su carpeta de Drive y le llega el aviso del contrato nuevo.',
+            : V.tipo === 'NUEVO' ? 'Se crea su carpeta de Drive y le llega un solo mensaje: entra con su número de documento, que también es su contraseña inicial.'
+                                 : 'Se crea su carpeta de Drive y le llega un solo mensaje con el aviso del contrato nuevo (entra con la misma contraseña que ya usa).',
         si: 'Registrar', accion: 'agregarContratista', datos: datos,
         cohete: 'Registrando el contrato', pasos: ['Revisando que no esté repetido', 'Creando su carpeta', 'Guardando']
       }).then(function (r) {
         if (!r) return;
         avisoEnvio(r);
-        if (r.sinCelular) K.aviso('Contrato ' + r.contrato + ' registrado. ' + SIN_CEL_TXT, 'aviso', 10000);
+        avisosDeFondo(r);
+        if (r.sinCelular) K.aviso('Contrato ' + r.contrato + ' registrado. Sin celular: no le llega el mensaje. ' +
+          (r.claveEsDocumento === false ? 'Entra con la misma contraseña que ya usa.' : 'Su contraseña es su documento: díselo al contratista.'), 'aviso', 10000);
         else K.aviso('Contrato ' + r.contrato + ' registrado.', 'ok', 4000);
         C.irA('contratista/' + encodeURIComponent(r.idContrato));
       });
@@ -622,6 +640,8 @@
     if (!D.fechaContrato) f.push('la fecha del contrato');
     if (!D.tipo) f.push('el tipo de contrato');
     if (!K.aNumero(D.valor)) f.push('el valor');
+    var pg = K.aNumero(D.pagos);
+    if (!pg || pg < 1 || pg > 24) f.push('la cantidad de pagos (de 1 a 24)');
     if (!new RegExp('^' + anio + '\\d{6}$').test(D.cdp || '')) f.push('el CDP');
     if (String(D.objeto || '').trim().length < 20) f.push('el objeto');
     var n = partirObligaciones(D.obligaciones).length;

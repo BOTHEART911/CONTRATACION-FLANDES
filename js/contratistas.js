@@ -93,6 +93,19 @@
 
   function todas() { return TODAS || []; }
 
+  /* 27/10 · tras registrar un contrato: su fila entra a la lista en memoria
+     (la respuesta trae solo esa fila, no las 300). Sin lista cargada no hace
+     nada: la vista la pide entera cuando haga falta. */
+  function parchar(datos) {
+    if (!TODAS || !datos) return false;
+    K.piezas.listas.expandir(datos).map(pulir).forEach(function (f) {
+      for (var i = 0; i < TODAS.length; i++) { if (TODAS[i].id === f.id) { TODAS[i] = f; return; } }
+      TODAS.unshift(f);
+    });
+    HORA = new Date();
+    return true;
+  }
+
   /** Si la lista no llegó con el arranque (sesión recién abierta por otro
       camino), el arranque se repite: trae también caras y configuración. */
   /* 7.0 · la lista ya no viaja con 'inicio': se pide aparte y UNA sola vez
@@ -786,7 +799,7 @@
 
   window.CONTRATISTAS = {
     configurar: function (o) { C = o || {}; },
-    recibir: recibir, cargar: cargar, todas: todas, olvidar: olvidar, ficha: ficha,
+    recibir: recibir, parchar: parchar, cargar: cargar, todas: todas, olvidar: olvidar, ficha: ficha,
     lista: lista, detalle: detalle,
     /* para la ayuda (Insights) */
     _visibles: function () { return VISTA || filtradas(); },
