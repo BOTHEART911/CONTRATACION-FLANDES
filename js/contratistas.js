@@ -518,6 +518,10 @@
       window.open('https://drive.google.com/drive/folders/' + encodeURIComponent(f.carpeta), '_blank', 'noopener');
     });
     a.appendChild(dr);
+    /* 27/10 · el informe del contratista (gerencial o de avances), como en Supervisión */
+    var inf = K.nodo('<button type="button" class="ins-accion" aria-label="Informe de ' + K.esc(f.nombre) + '">' + K.icono('pdf', 16) + ' Informe</button>');
+    inf.addEventListener('click', function () { K.vibrar(8); C.irA('informe/' + encodeURIComponent(f.id)); });
+    a.appendChild(inf);
     return a;
   }
 

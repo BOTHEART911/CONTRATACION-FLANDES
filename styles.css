@@ -2801,3 +2801,30 @@
 .ag-g--tarde .ag-g__v { color: var(--k-malo); }
 @media (min-width: 900px) { .ag-celda__t em { display: inline; } }
 @media (max-width: 899px) { .ag-celda__t { position: static; align-self: flex-start; } }
+
+/* INFORME DE CUENTAS de un contrato */
+.inf-cifras .ct-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 760px) { .inf-cifras .ct-cifras { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.inf-cifras .ct-cifra b { font-size: 1rem; overflow-wrap: anywhere; }
+.inf-cifras .ct-plazo { margin-top: 12px; }
+.inf-bajar { display: flex; flex-direction: column; gap: 10px; }
+.inf-act { display: flex; gap: 8px; align-items: center; font: 500 .86rem/1.4 var(--k-fuente); color: var(--k-tinta-2); cursor: pointer; }
+.inf-act input { width: 18px; height: 18px; accent-color: var(--k-marca); }
+.inf-cuentas { display: flex; flex-direction: column; gap: 8px; }
+.inf-fila .rp-fila__f b { font-size: 1.15rem; }
+.inf-fila .rp-fila__n small { font-weight: 400; color: var(--k-tinta-2); }
+.inf-docs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.inf-docs .ins-accion { padding: 6px 10px; font-size: .76rem; }
+
+/* 27/10 · calidad del reporte e informe de avances (el número ya no se monta sobre la etiqueta) */
+.inf-analisis { display: flex; flex-direction: column; gap: 8px; }
+.inf-analisis .ct-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 760px) { .inf-analisis .ct-cifras { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.inf-analisis .ct-cifra b { overflow-wrap: anywhere; }
+.inf-analisis .ct-plazo__t { grid-template-columns: minmax(0, 1fr) auto; }
+.inf-analisis .ct-plazo__t b { font-weight: 700; }
+.inf-analisis .formulario__nota { margin: 0; }
+.ct-obl summary { cursor: pointer; list-style: none; }
+.ct-obl summary::-webkit-details-marker { display: none; }
+.ct-obl summary::after { content: ' ▸'; color: var(--k-apagado); }
+.ct-obl[open] summary::after { content: ' ▾'; }

@@ -44,6 +44,7 @@ var ARMAZON = [
   './js/marca.js',
   './js/app.js',
   './js/contratistas.js',
+  './js/informe.js',
   './js/ayuda.js',
   './js/gestion.js',
   /* 10.2 · carga masiva */
@@ -97,7 +98,7 @@ var ARMAZON = [
   /* 5.3 · revisión de cuentas */
   './kit/carrusel.js', './kit/carrusel.css',
   /* 5.4 · reporte en PDF y Excel */
-  './kit/exportar.js', './kit/exportar.css', './kit/gerencial.js',
+  './kit/exportar.js', './kit/exportar.css', './kit/gerencial.js', './kit/informe-cuentas.js',
   /* 24/10 · el asistente de ayuda: pieza del kit, su base y su adaptador */
   './kit/asistente.js', './kit/asistente.css', './kit/gemini.js',
   './js/asistente-base.js', './js/asistente-app.js'

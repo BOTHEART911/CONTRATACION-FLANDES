@@ -198,6 +198,7 @@
     if (window.REQS) window.REQS.configurar(cOf);
     if (window.COMUS) window.COMUS.configurar(cOf);
     if (window.REPORTE) window.REPORTE.configurar(cOf);
+    if (window.INFORME) window.INFORME.configurar(cOf);   /* 27/10 · informe del contratista */
     /* 06/10 · MIS REGISTROS: lo que hizo cada persona, para descargarlo */
     if (window.MISREGISTROS) window.MISREGISTROS.configurar({ app: app, errorCaja: errorCaja, nombreApp: 'Contratacion' });
     if (window.AGENDA) window.AGENDA.configurar({ modo: 'CONTRATACION', app: app, errorCaja: errorCaja });   /* 15/10 */
@@ -299,6 +300,7 @@
     if (window.REQS) window.REQS.olvidar();
     if (window.COMUS) window.COMUS.olvidar();
     if (window.REPORTE) window.REPORTE.olvidar();
+    if (window.INFORME) window.INFORME.olvidar();
     if (window.MISREGISTROS) window.MISREGISTROS.olvidar();
     if (window.AGENDA) window.AGENDA.olvidar();
     if (window.SOLICITUDES) window.SOLICITUDES.olvidar();
@@ -313,6 +315,7 @@
     inicio: vistaInicio,
     contratistas: function (sub) { window.CONTRATISTAS.lista(sub); },
     contratista: function (sub) { window.CONTRATISTAS.detalle(sub); },
+    informe: function (sub) { window.INFORME.vista(sub); },   /* 27/10 */
     /* 5.2 */
     agregar: function (sub) { window.GESTION.agregar(sub); },   /* 26/09 · sub = documento que pidió acceso */
     adicion: function (sub) { window.GESTION.adicion(sub); },
@@ -337,6 +340,7 @@
     inicio: 'Contratación',
     contratistas: 'CONTRATISTAS',
     contratista: 'DETALLES DEL CONTRATISTA',
+    informe: 'INFORME DEL CONTRATISTA',
     agregar: 'AGREGAR CONTRATISTA',
     adicion: 'ADICIÓN',
     cesion: 'CESIÓN',
@@ -356,7 +360,7 @@
   /* El permiso de cada vista (llave PERMISOS de CONFIG). El CORE lo vuelve
      a exigir en cada llamada: esto solo evita pintar lo que no se puede. */
   var PERMISO = {
-    contratistas: 'contratistas', contratista: 'contratistas',
+    contratistas: 'contratistas', contratista: 'contratistas', informe: 'contratistas',
     agregar: 'agregarContratista', masiva: 'agregarContratista', adicion: 'adicion', cesion: 'cesion', suspension: 'suspension', editar: 'editarContratista',
     revisar: 'revisarCuentas', cuenta: 'revisarCuentas',
     requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte',
@@ -384,7 +388,7 @@
        adición/cesión/suspensión a la ficha de la que salieron */
     var resto = partes.slice(1).join('/');
     K.piezas.banner.atras(v === 'inicio' ? null : function () {
-      if (v === 'adicion' || v === 'cesion' || v === 'suspension' || v === 'editar') irA('contratista/' + resto);
+      if (v === 'adicion' || v === 'cesion' || v === 'suspension' || v === 'editar' || v === 'informe') irA('contratista/' + resto);
       else if (v === 'contratista' || v === 'agregar' || v === 'masiva') irA('contratistas');
       else if (v === 'cuenta') irA('revisar');
       else irA('inicio');
