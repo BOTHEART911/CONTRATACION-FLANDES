@@ -1567,7 +1567,17 @@
       '<b>Aprobar</b><small>Sigue al plan de pagos</small></button>');
     var bD = K.nodo('<button type="button" class="rv-dec__op rv-dec__op--malo" role="radio" aria-checked="false">' + K.icono('responder', 26) +
       '<b>Devolver</b><small>Vuelve al contratista para corregir</small></button>');
+    /* 26/10 · con observaciones para el contratista, DEVOLVER sale en rojo y destacado (induce a devolver) */
+    var nObsDec = observaciones().length;
+    if (nObsDec) {
+      bD.classList.add('rv-dec__op--sugerido');
+      bD.appendChild(K.nodo('<span class="rv-dec__chip">' + nObsDec + (nObsDec === 1 ? ' observación' : ' observaciones') + ' para el contratista</span>'));
+    }
     op.appendChild(bA); op.appendChild(bD);
+    if (nObsDec) {
+      cuerpo.appendChild(K.nodo('<p class="rv-aviso rv-aviso--mini rv-aviso--malo rv-dec__sug">' + K.icono('aviso', 16) + '<span>Dejaste ' +
+        (nObsDec === 1 ? '<b>1 observación' : '<b>' + nObsDec + ' observaciones') + ' para el contratista</b>: lo indicado es <b>devolver</b> la cuenta.</span></p>'));
+    }
     cuerpo.appendChild(op);
     var zona = K.nodo('<div class="rv-dec__zona"></div>');
     cuerpo.appendChild(zona);
