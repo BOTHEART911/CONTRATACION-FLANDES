@@ -34,7 +34,8 @@
 
    10.2 (archivo COMPARTIDO: el mismo en CONTRATACION-FLANDES y ADMIN-FLANDES)
      · Botón CARGA MASIVA junto a Agregar (misma regla de permiso).
-     · Ganchos para ADMIN (window.GESTION_EXTRA): más botones en la tarjeta
+     · Ganchos para ADMIN (window.GESTION_EXTRA): lista / alPintar / tarjeta
+       (26/10, selección de varios para el WhatsApp en bloque) y más botones en la tarjeta
        y la ficha (novedades, editar datos, cuentas) y secciones propias en
        la ficha. En CONTRATACION no existe y todo sigue igual.
      · Si la ficha llega ya pedida (una escritura devolvió 'detalle'), se
@@ -261,6 +262,13 @@
 
     var pEstado, pSec, pSup, visibles = POR_TANDA;
 
+    /* 26/10 · ADMIN: selección de varios (WhatsApp en bloque). CONTRATACION no lo trae. */
+    var XL = window.GESTION_EXTRA;
+    if (XL && XL.lista) {
+      try { XL.lista({ caja: caja, antesDe: conteo, repintar: function () { pintar(); }, visibles: function () { return VISTA || []; }, filtros: textoFiltros }); }
+      catch (e) { try { console.error(e); } catch (e2) {} }
+    }
+
     function montarPastillas() {
       zEstado.innerHTML = ''; zSec.innerHTML = ''; zSup.innerHTML = '';
       pEstado = K.piezas.pastillas.montar(zEstado, {
@@ -371,11 +379,13 @@
           cambio();
         });
         mas.hidden = true;
+        if (XL && XL.alPintar) XL.alPintar(filas);
         return;
       }
       filas.slice(0, visibles).forEach(function (f) { rej.appendChild(tarjeta(f)); });
       mas.hidden = filas.length <= visibles;
       mas.textContent = 'Ver ' + Math.min(POR_TANDA, filas.length - visibles) + ' más (quedan ' + (filas.length - visibles) + ')';
+      if (XL && XL.alPintar) XL.alPintar(filas);
     }
 
     mas.addEventListener('click', function () {
@@ -449,6 +459,10 @@
     t.appendChild(acciones(f, false));
     var g = gestion(f);
     if (g) t.appendChild(g);
+    /* 26/10 · ADMIN marca la tarjeta cuando se seleccionan varios */
+    if (window.GESTION_EXTRA && window.GESTION_EXTRA.tarjeta) {
+      try { window.GESTION_EXTRA.tarjeta(t, f); } catch (e) { try { console.error(e); } catch (e2) {} }
+    }
     return t;
   }
 
