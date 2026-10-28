@@ -951,7 +951,7 @@
       f.appendChild(quien);
       var inpN = campoTexto(f, D, 'nombre', 'Nombre completo', 'Como está en la cédula.', { mayus: true });
       var fila = K.nodo('<div class="campo-fila"></div>');
-      campoTexto(fila, D, 'telefono', 'Celular (opcional)', 'Ahí le llega el aviso (y la contraseña si es nuevo). Sin celular, su contraseña será su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
+      campoTexto(fila, D, 'telefono', 'Celular (opcional)', 'Ahí le llega un solo mensaje con su acceso. Si es nuevo, su contraseña inicial es su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
       campoTexto(fila, D, 'correo', 'Correo (opcional)', '');
       f.appendChild(fila);
       f.appendChild(K.nodo('<h3 class="grupo__t">Las fechas</h3>'));
@@ -1009,12 +1009,15 @@
         if (!/^\d{6,10}$/.test(D.documento || '') || V) return;
         K.pedir('validarDocumento', { documento: D.documento }).then(function (v) {
           V = v;
+          /* 27/10 · un solo mensaje (el de la cesión) que dice con qué contraseña entra */
           if (v.tipo !== 'NUEVO') {
             D.nombre = v.nombre; inpN.value = v.nombre;
-            quien.innerHTML = '<p class="gs-ok"><b>' + K.esc(nombre(v.nombre)) + '</b> ya está en la Alcaldía: se traen sus datos personales y conserva su contraseña.</p>' +
-              (v.sinCelular ? '<p class="gs-alerta">No tiene contraseña ni celular registrado: su contraseña será su documento. Díselo al contratista.</p>' : '');
+            var sinClave = v.tieneClave === false || v.sinCelular;
+            quien.innerHTML = '<p class="gs-ok"><b>' + K.esc(nombre(v.nombre)) + '</b> ya está en la Alcaldía: se traen sus datos personales' +
+              (sinClave ? '. No tiene contraseña: entrará con su número de documento.' : ' y conserva la contraseña que ya usa.') + '</p>' +
+              (v.sinCelular ? '<p class="gs-alerta">No tiene celular registrado: no le llega el mensaje. Su contraseña será su documento. Díselo al contratista.</p>' : '');
           } else {
-            quien.innerHTML = '<p class="gs-ok">Persona nueva: con celular, la contraseña le llega por WhatsApp; sin celular, su contraseña será su documento.</p>';
+            quien.innerHTML = '<p class="gs-ok">Persona nueva: su contraseña inicial será su número de documento. Con celular le llega <b>un solo mensaje</b> con la cesión y su acceso.</p>';
           }
         })['catch'](function () {});
       });
@@ -1039,13 +1042,19 @@
         if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 6000); return; }
         var celC = celularRevisar(D.telefono);
         if (celC.error) { K.aviso(celC.error, 'aviso', 8000); return; }
-        var sinCelC = V && V.tipo !== 'NUEVO' ? !!V.sinCelular : !celC.tel;
+        /* 27/10 · quien ya estuvo usa su celular guardado si no se escribe otro */
+        var ya = V && V.tipo !== 'NUEVO';
+        var sinCelC = !celC.tel && (!ya || !V.telefono || !!V.celularInvalido);
+        var claveDoc = !ya || V.tieneClave === false || !!V.sinCelular;
         K.piezas.confirmar.preguntar({
           titulo: '¿Ceder el contrato ' + c.contrato + '?',
           lista: [['Cede', nombre(c.nombre)], ['Recibe', nombre(D.nombre)], ['Documento', D.documento],
                   ['Fecha de cesión', D.fechaCesion], ['Cedente', D.informesCedente + ' informes · ' + K.pesos(vCed) + ' · hasta ' + (P.finCed || '')],
                   ['Cesionario', D.informesCesionario + ' informes · ' + K.pesos(vCes) + ' · desde ' + D.inicioCesionario]],
-          nota: 'Se crea la fila del cesionario y el plazo del cedente termina el ' + (P.finCed || '') + '. No se deshace desde la app.' + (sinCelC ? ' ' + SIN_CEL_TXT : ''),
+          nota: 'Se crea la fila del cesionario y el plazo del cedente termina el ' + (P.finCed || '') + '. No se deshace desde la app. ' +
+                (sinCelC ? (claveDoc ? SIN_CEL_TXT : 'Sin celular: no le llega el mensaje. Entra con la misma contraseña que ya usa.')
+                         : claveDoc ? 'Le llega un solo mensaje: entra con su número de documento, que también es su contraseña inicial.'
+                                    : 'Le llega un solo mensaje con la cesión (entra con la misma contraseña que ya usa).'),
           si: 'Sí, ceder', peligro: true
         }).then(function (ok) {
           if (!ok) return;
@@ -1053,14 +1062,19 @@
           K.piezas.guardado.mientras(K.pedir('cesion', {
             idContrato: c.idContrato, documento: D.documento, nombre: D.nombre, telefono: celC.tel,
             correo: D.correo || '', fechaCesion: D.fechaCesion, inicioCesionario: D.inicioCesionario,
-            informesCedente: D.informesCedente, valorCedente: String(vCed), informesCesionario: D.informesCesionario
+            informesCedente: D.informesCedente, valorCedente: String(vCed), informesCesionario: D.informesCesionario,
+            soloFila: true   /* 27/10 · vuelven las 2 filas que cambian (se parchan), no la lista entera */
           }, { ms: 90000 }), { titulo: 'Cediendo el contrato', pasos: ['Revisando las cuentas', 'Partiendo el plazo y el valor', 'Creando la fila y la carpeta del cesionario'] })
             .then(function (r) {
               K.ocupado = false;
-              if (r.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(r.contratistas);
+              if (r.contratista && window.CONTRATISTAS && window.CONTRATISTAS.parchar) window.CONTRATISTAS.parchar(r.contratista);
+              else if (r.contratistas && window.CONTRATISTAS) window.CONTRATISTAS.recibir(r.contratistas);
               if (window.GESTION_EXTRA && window.GESTION_EXTRA.alGuardar) window.GESTION_EXTRA.alGuardar(r);
               avisoEnvio(r);
-              K.aviso('Contrato cedido a ' + nombre(r.cesionario) + ': entra con su propia fila.' + (r.sinCelular ? ' ' + SIN_CEL_TXT : ''), r.sinCelular ? 'aviso' : 'ok', r.sinCelular ? 10000 : 6000);
+              avisosDeFondo(r);   /* 27/10 · el único mensaje sale de fondo (cola FC27) */
+              K.aviso('Contrato cedido a ' + nombre(r.cesionario) + ': entra con su propia fila.' + (r.sinCelular ? ' ' +
+                (r.claveEsDocumento === false ? 'Sin celular: no le llega el mensaje. Entra con la misma contraseña que ya usa.' : SIN_CEL_TXT) : ''),
+                r.sinCelular ? 'aviso' : 'ok', r.sinCelular ? 10000 : 6000);
               C.irA('contratista/' + encodeURIComponent(r.idContrato));
             }, function (e) { K.ocupado = false; mal(e); });
         });
