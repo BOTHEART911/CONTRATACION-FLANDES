@@ -545,7 +545,7 @@
       if (V.tipo === 'NUEVO') {
         var fila0 = K.nodo('<div class="campo-fila"></div>');
         campoTexto(fila0, D, 'telefono', 'Celular (opcional)', 'Si lo tiene, ahí le llega el mensaje con su acceso. Si no, déjalo vacío. Su contraseña inicial es su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
-        campoTexto(fila0, D, 'correo', 'Correo (opcional)', '', { marcador: 'nombre@correo.com' });
+        campoTexto(fila0, D, 'correo', 'Correo Gmail (opcional)', 'Solo Gmail: por él se comparten sus carpetas y cuentas.', { marcador: 'nombre@gmail.com' });
         paso2.appendChild(fila0);
       } else if (V.telefono) {
         paso2.appendChild(K.nodo('<p class="formulario__nota">El aviso le llega al celular que ya tiene registrado (' + K.esc(V.telefono) + ').</p>'));
@@ -586,6 +586,7 @@
       ev.preventDefault();
       var falta = faltaAlta(D, V);
       if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 7000); return; }
+      if (correoMal(D.correo)) { K.aviso(correoMal(D.correo), 'aviso', 8000); return; }
       var cel = V.tipo === 'NUEVO' ? celularRevisar(D.telefono) : { error: '' };
       if (cel.error) { K.aviso(cel.error, 'aviso', 8000); return; }
       var oblR = oblPartir(D.obligaciones);
@@ -628,6 +629,15 @@
         C.irA('contratista/' + encodeURIComponent(r.idContrato));
       });
     }
+  }
+
+  /* 06/11 · SOLO GMAIL (vacío vale: es opcional). Misma regla y texto que el CORE (FC_correoGmail_). */
+  var GMAIL_MSG = 'Para garantizar que las carpetas y las cuentas se compartan correctamente, se requiere un correo Gmail.';
+  function correoMal(c) {
+    c = String(c || '').trim();
+    if (!c) return '';
+    if (!/^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]{2,}$/.test(c)) return 'El correo no está bien escrito.';
+    return /^[^@\s,;]+@gmail\.com$/i.test(c) ? '' : GMAIL_MSG;
   }
 
   function faltaAlta(D, V) {
@@ -952,7 +962,7 @@
       var inpN = campoTexto(f, D, 'nombre', 'Nombre completo', 'Como está en la cédula.', { mayus: true });
       var fila = K.nodo('<div class="campo-fila"></div>');
       campoTexto(fila, D, 'telefono', 'Celular (opcional)', 'Ahí le llega un solo mensaje con su acceso. Si es nuevo, su contraseña inicial es su documento. Nunca un número genérico.', { numerico: 10, marcador: '10 dígitos, empieza por 3' });
-      campoTexto(fila, D, 'correo', 'Correo (opcional)', '');
+      campoTexto(fila, D, 'correo', 'Correo Gmail (opcional)', 'Solo Gmail: por él se comparten sus carpetas y cuentas.', { marcador: 'nombre@gmail.com' });
       f.appendChild(fila);
       f.appendChild(K.nodo('<h3 class="grupo__t">Las fechas</h3>'));
       var fila2 = K.nodo('<div class="campo-fila"></div>');
@@ -1040,6 +1050,7 @@
         if (P && vCes <= 0) falta.push('un valor que le deje algo al cesionario');
         if (P && !(+D.informesCesionario > 0)) falta.push('los informes del cesionario');
         if (falta.length) { K.aviso('Te falta: ' + falta.join(', ') + '.', 'aviso', 6000); return; }
+        if (correoMal(D.correo)) { K.aviso(correoMal(D.correo), 'aviso', 8000); return; }
         var celC = celularRevisar(D.telefono);
         if (celC.error) { K.aviso(celC.error, 'aviso', 8000); return; }
         /* 27/10 · quien ya estuvo usa su celular guardado si no se escribe otro */
