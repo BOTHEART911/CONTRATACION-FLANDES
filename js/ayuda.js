@@ -308,6 +308,13 @@
             if (!p.length) return 'Nadie está esperando acceso.';
             return listaCorta(p, function (r) { return '· **' + nombre(r.nombre) + '** (' + r.documento + ')' + (r.activoAhora ? ' · ya tiene contrato ACTIVO' : ''); }, 8);
           } },
+        { texto: '¿Qué es CORREO SIN DRIVE?', responde: function () {
+            var d = SB() && SB()._datos();
+            var n = d ? d.lista.filter(function (r) { return r.tipo === 'CORREO SIN DRIVE' && SB()._grupo(r) === 'PENDIENTE'; }).length : 0;
+            return 'La pone el sistema cuando no logra compartir en Drive las carpetas de las cuentas con el correo del contratista (ese correo no tiene cuenta de Google o está mal escrito). ' +
+                   'Pídele un correo con cuenta de Google y que lo cambie en **DATOS PERSONALES**: en unos minutos el sistema le comparte sus carpetas, le quita el acceso al correo anterior y **cierra sola** la solicitud (responde «SISTEMA»). ' +
+                   'En la app sigue viendo sus documentos igual.' + (n ? '\n\nHoy hay **' + n + '** pendiente' + (n > 1 ? 's' : '') + '.' : '');
+          } },
         { texto: '¿Qué es una gestión suelta?', responde: function () {
             return 'Lo que la oficina hizo por un contrato sin que el contratista lo pidiera (lo atendieron, se tramitó algo). Se registra con **Registrar gestión** y el contratista la ve en su panel.';
           } }
