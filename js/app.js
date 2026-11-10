@@ -202,6 +202,7 @@
     /* 06/10 · MIS REGISTROS: lo que hizo cada persona, para descargarlo */
     if (window.MISREGISTROS) window.MISREGISTROS.configurar({ app: app, errorCaja: errorCaja, nombreApp: 'Contratacion' });
     if (window.AGENDA) window.AGENDA.configurar({ modo: 'CONTRATACION', app: app, errorCaja: errorCaja });   /* 15/10 */
+    if (window.CALIDAD) window.CALIDAD.configurar({ app: app, errorCaja: errorCaja, nombreApp: 'Contratación' });   /* 10/11 */
     /* 26/09 · SOLICITUDES de los contratistas: el número del inicio sigue a la bandeja sin otro viaje */
     if (window.SOLICITUDES) window.SOLICITUDES.configurar({ app: app, puede: puede, irA: irA, errorCaja: errorCaja,
       alCambiar: function (n) { if (ARRANQUE) ARRANQUE.solicitudes = n; } });
@@ -332,6 +333,7 @@
     reporte: function () { window.REPORTE.vista(); },
     misregistros: function () { window.MISREGISTROS.vista(); },   /* 06/10 */
     agenda: function () { window.AGENDA.vista(); },               /* 15/10 */
+    calidad: function () { window.CALIDAD.vista(); },             /* 10/11 · calidad del primer filtro */
     /* 26/09 */
     solicitudes: function () { window.SOLICITUDES.vista(); }
   };
@@ -354,6 +356,7 @@
     reporte: 'REPORTE',
     misregistros: 'MIS REGISTROS',
     agenda: 'AGENDA DE REVISIÓN',
+    calidad: 'CALIDAD DEL PRIMER FILTRO',
     solicitudes: 'SOLICITUDES'
   };
 
@@ -366,6 +369,7 @@
     requerimientos: 'requerimientos', comunicados: 'comunicados', reporte: 'reporte',
     misregistros: '*',
     agenda: '*',   /* 15/10 · solo consulta */
+    calidad: 'calidadSupervision',   /* 10/11 · permiso nuevo, se asigna en ADMIN */
     solicitudes: 'solicitudes'
   };
 
@@ -454,7 +458,10 @@
         'img/procesos_de_cuenta.webp', function () { irA('revisar'); });
       /* 15/10 · qué días llega cuánto trabajo y de quiénes */
       bloque('CUENTAS', [accRev, accesoIcono('AGENDA DE REVISIÓN', 'Qué días llegan las cuentas a Supervisión y de quiénes, según el corte de cada contratista',
-        'calendario', function () { irA('agenda'); })]);
+        'calendario', function () { irA('agenda'); })].concat(puede('calidadSupervision') ? [
+        /* 10/11 · calidad del primer filtro: una tarjeta por supervisor, de mayor a menor, con su informe */
+        accesoIcono('CALIDAD DEL PRIMER FILTRO', 'Qué tan completas llegan las cuentas que aprueba cada supervisor: ranking e informe para mejorar',
+          'grafica', function () { irA('calidad'); })] : []));
     }
 
     /* 5.4 · la oficina: pedir, informar y rendir cuentas */

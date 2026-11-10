@@ -120,7 +120,8 @@
   GUIAS.revisar = function () {
     return {
       guia: 'Aquí están las cuentas que el **supervisor ya revisó** y esperan a Contratación, de la más antigua a la más nueva. ' +
-            '**Sin abrir** nadie las ha tocado; **En revisión** alguien ya dejó notas (solo es un aviso, no bloquea); **Vuelven corregidas** ya se devolvieron antes.',
+            '**Sin abrir** nadie las ha tocado; **En revisión** alguien ya dejó notas (solo es un aviso, no bloquea); **Vuelven corregidas** ya se devolvieron antes. ' +
+            'La pastilla **Primer filtro N %** dice qué tan completa llegó la cuenta cuando el supervisor la aprobó, medida con los mismos 6 bombillos (verde 80 % o más, ámbar 60 a 79 %, rojo menos de 60 %; con ≈ es aproximada).',
       botones: [
         { texto: '¿Cuál lleva más días esperando?', responde: function () {
             var c = RV() ? RV()._cuentas() : [];
@@ -138,6 +139,12 @@
               return '· **' + nombre(x.nombre) + '** (cuenta ' + x.informe + ')' + (x.ultimaDevolucion && x.ultimaDevolucion.motivo ? ': «' + x.ultimaDevolucion.motivo + '»' : '');
             }, 6);
           } },
+        { texto: '¿Cuáles llegan con menos calidad?', responde: function () {
+            var c = (RV() ? RV()._cuentas() : []).filter(function (x) { return x.calidad && x.calidad.cal !== null && x.calidad.cal !== undefined; });
+            if (!c.length) return 'Ninguna cuenta de la lista trae todavía su medida del primer filtro.';
+            c.sort(function (a, b) { return a.calidad.cal - b.calidad.cal; });
+            return listaCorta(c, function (x) { return '· **' + nombre(x.nombre) + '** (cuenta ' + x.informe + '): **' + x.calidad.cal + ' %**' + (x.sup ? ' — la pasó ' + nombre(x.sup) : ''); }, 6);
+          } },
         { texto: '¿Quién está revisando qué?', responde: function () {
             var c = (RV() ? RV()._cuentas() : []).filter(function (x) { return x.revision; });
             if (!c.length) return 'Nadie tiene revisiones a medias.';
@@ -153,6 +160,7 @@
     return {
       guia: 'Revisa por pestañas: **Contrato**, **Pago**, **Planilla** y **Actividades**. Cada documento se abre en el visor (lo puedes encoger y mover) y cada evidencia en el carrusel con zoom. En **Actividades**, cada obligación trae sus imágenes y, si el contratista los adjuntó, sus **archivos de evidencia** (hasta 5, PDF, Word o Excel) numerados **1.1**, **1.2**…: toca cualquiera y se abre en el visor (aunque esté minimizado); con las flechas pasas a los demás, ya precargados. ' +
               'Debajo de cada actividad sale **Calidad de la actividad** con **6 bombillos** en lenguaje técnico (no hay que tocar nada): si diferenció lo realizado (o si la **estructura** es igual a la cuenta anterior, una **plantilla rellenada** o el mismo orden de frases), si **cuantificó** y acompañó la cifra, si indicó **destinatario**, si dejó **entregable**, si ubicó la actividad **en el periodo** y si tiene **soporte** (naranja si solo dijo dónde verificarlo, verde si lo cargó o declaró que no requiere adjunto). Toca un bombillo verde y se resalta el fragmento. Toca uno **rojo** (o ámbar) y sale **qué falta** en una línea y una **frase sugerida** armada con su texto y [corchetes] donde debe completar; con **Pasar a la observación para el contratista** queda escrita como observación de esa obligación (si devuelves la cuenta, sale en el motivo y puedes editarla antes). Si alguno está en rojo, **Lo que «Te ayudo» le indica al contratista** muestra la pista que el botón del borrador le da con ese texto (qué le falta, con ejemplos entre [corchetes]). Con **Comparar con la cuenta anterior** ves, lado a lado, lo que escribió antes en esa obligación. **Evidencias de cuentas anteriores** abre la galería de imágenes y adjuntos de TODAS sus cuentas anteriores en esa obligación. Si una evidencia de esta cuenta ya se presentó antes (aunque salte cuentas), sale marcada: **rojo «Igual a la de la cuenta N»** cuando es el mismo archivo o la misma imagen vuelta a subir, y **ámbar «Muy parecida»** cuando se ve igual pero puede ser otra captura de la misma pantalla con otros datos (compáralas en la galería). Si es igual a la de **otro contrato** (p. ej. la foto de una reunión compartida) solo se informa. El bombillo de **soporte** también lo dice. Se mide la forma de escribir, no el vocabulario: repetir los términos de la obligación no cuenta. En **Tomar decisión** sale el resumen por obligación. ' +
+            'Arriba, **Calidad del primer filtro** dice qué tan completa llegó la cuenta cuando el supervisor la aprobó (una casilla por obligación; pasa el dedo o el mouse para ver sus bombillos). Si Supervisión no la mandó, se mide aquí y se guarda sola. ' +
             'Marca con ✓ lo revisado. En cada obligación y documento tienes dos cajas: **Nota interna** (solo el equipo) y **Para el contratista**. **Guardar revisión** no cambia el estado: la retomas donde quedaste. ' +
             'Al **devolver**, el motivo sale ya escrito con tus observaciones para el contratista, en orden; lo editas y confirmas. Las notas internas nunca le llegan, y si apruebas, las observaciones no se envían. ' +
             'Si tu usuario no decide, deja tu **Visto bueno** (sugieres aprobar) o **Con inconsistencia** (sugieres devolver): se arma tu **informe de revisión** (PDF interno). Quien decide ve arriba de **Tomar decisión** lo que sugirieron el revisor de Supervisión y el de Contratación, con sus informes; si el de Contratación sugirió devolver y se aprueba, se escribe una línea de por qué.',
@@ -348,10 +356,17 @@
       : { guia: 'Aquí ves qué días te llega cuánto trabajo y de quiénes.', botones: [] };
   };
 
+  /* 10/11 · CALIDAD DEL PRIMER FILTRO: la guía vive en js/calidad.js (mismo archivo en CONTRATACIÓN, ADMIN y SUPERVISIÓN) */
+  GUIAS.calidad = function () {
+    return window.CALIDAD && window.CALIDAD.ayuda ? window.CALIDAD.ayuda()
+      : { guia: 'Qué tan completas llegan a Contratación las cuentas que aprueba cada supervisor.', botones: [] };
+  };
+
   var TITULOS = { inicio: 'Tu inicio', misregistros: 'Mis registros',
                   revisar: 'Revisar cuentas', cuenta: 'Revisión de cuenta',
                   requerimientos: 'Requerimientos', comunicados: 'Comunicados', reporte: 'Reporte de Contratación', solicitudes: 'Solicitudes' };
   TITULOS.agenda = 'Agenda de revisión';
+  TITULOS.calidad = 'Calidad del primer filtro';
 
   /* 10.2 · las guías de contratistas (lista, ficha, gestión y carga masiva) viven en
      js/ayuda-contratos.js, el mismo archivo de ADMIN-FLANDES */

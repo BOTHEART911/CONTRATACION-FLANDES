@@ -290,6 +290,8 @@
       marcas.push('<span class="ct-marca rv-marca--vuelve" title="' + K.esc(c.ultimaDevolucion ? c.ultimaDevolucion.motivo : '') + '">' +
         K.icono('recargar', 11) + ' VUELVE CORREGIDA' + (c.devoluciones > 1 ? ' (' + c.devoluciones + ' devoluciones)' : '') + '</span>');
     }
+    /* 10/11 · CALIDAD DEL PRIMER FILTRO: con qué calidad la pasó el supervisor (llega en la lista: sin viaje) */
+    if (c.calidad && K.piezas.calidad) { var pc = K.piezas.calidad.pastilla(c.calidad); if (pc) marcas.push(pc); }
     if (marcas.length) t.appendChild(K.nodo('<div class="ct-t__marcas">' + marcas.join('') + '</div>'));
     if (c.revision) {
       t.appendChild(K.nodo('<p class="rv-encurso">' + K.icono('reloj', 14) + '<span>En revisión por <b>' + K.esc(nombre(c.revision.por)) +
@@ -635,6 +637,7 @@
       cab.appendChild(s);
     }
     caja.appendChild(cab);
+    calidadCabecera(caja);   /* 10/11 · calidad del primer filtro */
 
     /* avisos de arriba: otra persona revisando, ya decidida, recuperada */
     var r = D.revision;
@@ -1215,6 +1218,42 @@
     if (s) s.classList.add('rv-salto--nota');
     refrescarCuentas();
     return true;
+  }
+
+  /**
+   * 10/11 · CALIDAD DEL PRIMER FILTRO en la cabecera del detalle: la foto con que
+   * el supervisor pasó la cuenta (llega en cuentaRevision, sin viaje). Si no llegó
+   * (teléfono viejo en Supervisión, o paso de antes), se mide AQUÍ con el mismo motor
+   * cuando llegan las anteriores (de fondo) y se guarda de respaldo UNA vez: la cuenta
+   * sigue en REVISADA POR SUPERVISOR, así que el texto es el mismo que aprobó.
+   * Con un CORE anterior (sin calidadVer) no se pinta nada.
+   */
+  var CAL_GUARDADA = {};
+  function calidadCabecera(caja) {
+    var Q = K.piezas.calidad, V = K.piezas.variacion;
+    if (!Q || !D || D.calidadVer === undefined) return;
+    var cu = D.cuenta, textos = {};
+    (D.obligaciones || []).forEach(function (o) { textos[o.n] = o.texto; });
+    var cal = D.calidad;
+    var hay = cal && cal.cal !== null && cal.cal !== undefined;
+    var nodo = Q.bloqueDetalle(hay ? cal : null, textos);
+    caja.appendChild(nodo);
+    if (hay) return;
+    if (!cu.porRevisar || !V) { nodo.remove(); return; }   /* ya decidida y sin foto: no se inventa */
+    var p = Number(cu.informe) > 1 ? precargarAnterior() : Promise.resolve({ v: 2, obligaciones: [], cuentas: [] });
+    Promise.all([p, V.ic()]).then(function (r) {
+      var f = Q.deCuenta(r[1], V, (D.obligaciones || []).map(function (o) { return { n: o.n, texto: o.texto, actual: o.actividad || '', soporte: soporteDe(o) }; }),
+        r[0], (D.contrato || {}).contrato || cu.contrato || '', periodoCuenta());
+      if (f.p === null) { if (nodo.isConnected) nodo.remove(); return; }
+      var nuevo = Q.bloqueDetalle({ cal: f.p, o: f.o, origen: 'RESPALDO', sup: cu.supervisor, ronda: 0 }, textos);
+      if (nodo.isConnected) nodo.parentNode.replaceChild(nuevo, nodo);
+      /* la tarjeta de la lista también lo muestra (parche en memoria) */
+      try { cuentas().forEach(function (x) { if (x.fila === cu.fila) x.calidad = { cal: f.p, origen: 'RESPALDO' }; }); } catch (e1) {}
+      var llave = cu.fila + '|' + cu.idContrato + '|' + cu.informe;
+      if (CAL_GUARDADA[llave]) return;
+      CAL_GUARDADA[llave] = 1;
+      K.pedir('calidadGuardar', { fila: cu.fila, id: cu.idContrato, informe: cu.informe, cal: f })['catch'](function () { delete CAL_GUARDADA[llave]; });
+    })['catch'](function () { if (nodo.isConnected) nodo.remove(); });
   }
 
   /** 02/11 · en TOMAR DECISIÓN: la calidad de las actividades por obligación (los 6 bombillos), con el mismo motor. */
