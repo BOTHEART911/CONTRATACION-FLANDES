@@ -2024,9 +2024,11 @@
   }
   function textoAvisoDevuelta(cu, motivo) {
     var pl = (D.plantillasDecision && D.plantillasDecision.devuelta) || DEVUELTA_DEFECTO;
+    /* 12/11 · como el CORE (FC53_datosAviso_): al WhatsApp los primeros 3.000 + el aviso */
+    var cw = corteWa(String(motivo || '').trim()), cola = cw.cortado ? '\n\n' + SUFIJO_WA : '';
     var datos = { nombre: cu.nombre, contratista: cu.nombre, contrato: cu.contrato, informe: cu.informe, total: cu.total || '',
-      cuenta: cu.informe + (cu.total ? ' de ' + cu.total : ''), motivo: lineasMotivo(motivo, false) || '- …',
-      motivo_negrilla: lineasMotivo(motivo, true) || '- …', observacion: String(motivo || '').trim() || '…',
+      cuenta: cu.informe + (cu.total ? ' de ' + cu.total : ''), motivo: (lineasMotivo(cw.texto, false) || '- …') + cola,
+      motivo_negrilla: (lineasMotivo(cw.texto, true) || '- …') + cola, observacion: (cw.texto || '…') + cola,
       revisor: D.yo.nombre, supervisor: cu.supervisor || '' };
     return pl.replace(/\{([a-zA-Z_]+)\}/g, function (t, k) { return datos[k] !== undefined && datos[k] !== null ? String(datos[k]) : ''; })
       .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -2136,6 +2138,29 @@
     }, function () {});
   }
 
+  /* 12/11 · DEVOLVER SIN LÍMITE DE CARACTERES. La observación se guarda completa y el
+     contratista la lee completa en su app. Al WhatsApp va lo mismo que antes: hasta 3.000;
+     si se pasa, se corta ahí (sin partir palabras) y se agrega el aviso. Igual que el CORE (FC1112). */
+  var TOPE_WA = 3000, TOPE_CELDA = 40000, SUFIJO_WA = '*{Continua los detalles de observación en la App}*';
+  function corteWa(texto) {
+    var t = String(texto == null ? '' : texto);
+    if (t.length <= TOPE_WA) return { texto: t, cortado: false };
+    var c = t.slice(0, TOPE_WA - 1);
+    var sp = Math.max(c.lastIndexOf(' '), c.lastIndexOf('\n'));
+    if (sp > TOPE_WA - 120) c = c.slice(0, sp);
+    return { texto: c.replace(/\s+$/, '') + '…', cortado: true };
+  }
+  function textoWa(v) {
+    var t = String(v || '').trim();
+    if (!t) return '…';
+    var c = corteWa(t);
+    return c.cortado ? c.texto + '\n\n' + SUFIJO_WA : t;
+  }
+  function contarMotivo(cont, n) {
+    cont.textContent = K.numero(n) + ' caracteres' + (n > TOPE_WA ? ' · al WhatsApp van los primeros 3.000 con el aviso «sigue en la App»; en la App lo lee completo' : '');
+    cont.classList.toggle('rv-dec__cont--corte', n > TOPE_WA);
+  }
+
   function tomarDecision() {
     var cu = D.cuenta;
     var p = puntos(), faltan = p.filter(function (k) { return !B.vistos[k]; });
@@ -2201,9 +2226,9 @@
         }
       } else {
         zona.appendChild(K.nodo('<label class="rv-dec__et" for="rv-motivo">Motivo de la devolución · <b>lo lee el contratista</b></label>'));
-        ta = K.nodo('<textarea id="rv-motivo" class="rv-editor__ta rv-dec__motivo" rows="8" maxlength="3000" placeholder="Qué debe corregir, uno por línea"></textarea>');
+        ta = K.nodo('<textarea id="rv-motivo" class="rv-editor__ta rv-dec__motivo" rows="8" placeholder="Qué debe corregir, uno por línea"></textarea>');
         zona.appendChild(ta);
-        var cont = K.nodo('<p class="rv-dec__cont">0 / 3.000</p>');
+        var cont = K.nodo('<p class="rv-dec__cont">0 caracteres</p>');
         zona.appendChild(cont);
         /* 29/09 · el motivo sale ARMADO con las observaciones para el contratista; se edita y se confirma */
         var obs = observaciones();
@@ -2232,7 +2257,7 @@
         var prev = K.nodo('<div class="rv-dec__prev"><p class="rv-dec__et">Así le llega al contratista</p><pre></pre></div>');
         zona.appendChild(prev);
         var pintarPrev = function () {
-          cont.textContent = K.numero(ta.value.length) + ' / 3.000';
+          contarMotivo(cont, ta.value.length);
           prev.querySelector('pre').textContent = textoAvisoDevuelta(cu, ta.value);
         };
         ta.addEventListener('input', pintarPrev);
@@ -2264,8 +2289,8 @@
         if (ta) ta.focus();
         return;
       }
-      if (motivo.length > 3000) {
-        K.aviso('El texto pasa de 3.000 caracteres: resúmelo un poco antes de confirmar.', 'aviso', 6000);
+      if (motivo.length > TOPE_CELDA) {   /* 12/11 · el único tope: lo que cabe en la celda de la hoja */
+        K.aviso('El texto pasa de 40.000 caracteres, lo máximo que cabe en la hoja: resume una parte antes de confirmar.', 'aviso', 7000);
         if (ta) ta.focus();
         return;
       }
