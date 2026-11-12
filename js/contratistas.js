@@ -114,7 +114,7 @@
   function cargar(forzar) {
     if (TODAS && !forzar) return Promise.resolve(TODAS);
     if (EN_CAMINO && !forzar) return EN_CAMINO;
-    var p = K.pedir('contratistas', {}, { ms: 60000 }).then(function (d) { recibir(d); return TODAS || []; });
+    var p = K.pedir('contratistas', { fmt: 2 }, { ms: 60000 }).then(function (d) { recibir(d); return TODAS || []; });
     EN_CAMINO = p;
     p.then(function () { if (EN_CAMINO === p) EN_CAMINO = null; }, function () { if (EN_CAMINO === p) EN_CAMINO = null; });
     return p;
