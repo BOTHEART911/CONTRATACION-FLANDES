@@ -1908,9 +1908,25 @@
       .map(function (x) { return x.n; });
   }
 
-  /** El motivo armado: una línea por observación ("• Obligación 3: …", "• Planilla: …"). */
+  /** 12/11 · El motivo armado AGRUPADO: «*Obligación 3:*» una sola vez y una viñeta por falta (KIT teayudo.armarMotivo). */
   function textoObservaciones() {
-    return observaciones().map(function (n) {
+    var TA = K.piezas.teayudo, obs = observaciones();
+    if (TA && TA.armarMotivo) {
+      var grupos = [], porClave = {}, act = {};
+      ((D && D.obligaciones) || []).forEach(function (o) { act[String(o.n)] = o.actividad || ''; });
+      obs.forEach(function (n) {
+        var gen = n.ambito === 'general', clave = gen ? 'general' : n.ambito + '|' + n.ref;
+        var g = porClave[clave];
+        if (!g) {
+          g = porClave[clave] = { titulo: gen ? '' : String(n.refTitulo || '').trim(), notas: [],
+            actividad: n.ambito === 'obligacion' ? (act[String(n.ref)] || '') : '' };
+          grupos.push(g);
+        }
+        g.notas.push(n.texto);
+      });
+      return TA.armarMotivo(grupos);
+    }
+    return obs.map(function (n) {
       var t = String(n.texto || '').replace(/\r/g, '').trim().replace(/\n+/g, '\n  ');
       var et = n.ambito === 'general' ? '' : String(n.refTitulo || '').trim();
       return '• ' + (et ? et + ': ' : '') + t;
@@ -1927,7 +1943,8 @@
       return caja;
     }
     var pre = K.nodo('<pre class="rv-lellega__txt"></pre>');
-    pre.textContent = textoObservaciones();
+    /* 12/11 · se ve como le llega: *negrita* de WhatsApp en negrita */
+    pre.innerHTML = K.esc(textoObservaciones()).replace(/\*([^*\n]{1,200})\*/g, '<b>$1</b>');
     caja.appendChild(pre);
     caja.appendChild(K.nodo('<p class="formulario__nota">Al tomar la decisión sale ya escrito y lo puedes editar. Las notas internas nunca se envían.</p>'));
     return caja;
@@ -2020,7 +2037,15 @@
      que viaja con el detalle; si el CORE aún no la manda, el texto por defecto. Firma: quien decide. */
   var DEVUELTA_DEFECTO = 'Hola *{nombre}*. Tu cuenta del *informe {informe}* (contrato {contrato}) fue *DEVUELTA.*\n\n*Motivo:*\n{motivo}\n\n' +
     'Corrígela en CORREGIR CUENTA y, cuando la guardes, repórtala otra vez desde ESTADO DE CUENTA.\n\n*{revisor}*\nOficina de Contratación\n\n_Alcaldía de Flandes · Tolima_';
+  /* 12/11 · motivo AGRUPADO («*Obligación 3:*» + «• …»): se respeta tal cual (títulos, viñetas y
+     negritas de los corchetes). Un motivo escrito a mano, sin esa forma, sigue como antes. Igual que el CORE. */
+  var RX_TITULO_MOT = /^\*[^*\n]{1,80}:\*$/, RX_VINETA_MOT = /^•\s/;
   function lineasMotivo(m, negrilla) {
+    var ls = String(m || '').replace(/\r/g, '').split('\n').map(function (x) { return x.trim(); });
+    if (ls.some(function (x) { return RX_TITULO_MOT.test(x) || RX_VINETA_MOT.test(x); })) {
+      return ls.map(function (x) { return !x || RX_TITULO_MOT.test(x) || RX_VINETA_MOT.test(x) ? x : '• ' + x.replace(/^\s*(?:[-•·]\s*)+/, ''); })
+        .join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
     return String(m || '').replace(/\r/g, '').split('\n').map(function (x) { return x.replace(/^\s*(?:[-•*·]\s*)+/, '').replace(/\*/g, '').trim(); })
       .filter(Boolean).map(function (x) { return negrilla ? '- *' + x + '*' : '- ' + x; }).join('\n');
   }
