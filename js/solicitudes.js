@@ -73,7 +73,8 @@
     return true;
   }
 
-  function esAcceso(r) { return r.origen === 'LOGIN'; }
+  /* 18/11 · también la NUEVO CONTRATO que pide desde la app quien ya terminó su contrato */
+  function esAcceso(r) { return r.origen === 'LOGIN' || r.tipo === 'NUEVO CONTRATO' || r.tipo === 'PRIMER CONTRATO'; }
   function grupoEstado(r) {
     if (r.tipo === 'GESTION') return 'GESTION';
     return r.estado === 'RESPONDIDA' ? 'RESPONDIDA' : 'PENDIENTE';
@@ -144,7 +145,7 @@
                    GESTION: bE.filter(function (r) { return grupoEstado(r) === 'GESTION'; }).length, '': bE.length });
       O.marcar(zA, F.estado);
       var bO = L.filter(function (r) { return pasa(r, { origen: true }); });
-      pB.conteos({ '': bO.length, LOGIN: bO.filter(esAcceso).length, APP: bO.filter(function (r) { return r.origen === 'APP'; }).length });
+      pB.conteos({ '': bO.length, LOGIN: bO.filter(function (r) { return r.origen === 'LOGIN'; }).length, APP: bO.filter(function (r) { return r.origen === 'APP'; }).length });
       O.marcar(zB, F.origen);
 
       var filas = L.filter(function (r) { return pasa(r); });
@@ -179,7 +180,7 @@
       var marcas = K.nodo('<div class="ct-t__marcas"></div>');
       marcas.appendChild(K.nodo('<span class="ct-marca sb-tipo">' + K.icono(esAcceso(r) ? 'llave' : (r.tipo === 'GESTION' ? 'check' : 'documento'), 11) + ' ' + K.esc(r.tipoTexto || r.tipo) + '</span>'));
       marcas.appendChild(K.nodo('<span class="ct-marca">' + K.icono('reloj', 11) + ' ' + K.esc(O.cuando(r._iso) || r.fecha) + '</span>'));
-      if (esAcceso(r)) marcas.appendChild(K.nodo('<span class="ct-marca sb-marca--entrada">Desde la entrada · sin acceso</span>'));
+      if (esAcceso(r)) marcas.appendChild(K.nodo('<span class="ct-marca sb-marca--entrada">' + (r.origen === 'LOGIN' ? 'Desde la entrada · sin acceso' : 'Desde la app · contrato terminado') + '</span>'));
       if (esAcceso(r) && r.activoAhora) marcas.appendChild(K.nodo('<span class="ct-marca ct-marca--adic">' + K.icono('check', 11) + ' Ya tiene contrato ACTIVO</span>'));
       t.appendChild(marcas);
 
@@ -198,6 +199,11 @@
       var txt = r.detalle || (r.tipo === 'NUEVO CONTRATO' ? 'Confirmó que ya aceptó un NUEVO contrato en el SECOP II y pide el acceso.'
         : (r.tipo === 'PRIMER CONTRATO' ? 'Confirmó que ya aceptó su contrato en el SECOP II y pide el acceso.' : ''));
       if (txt) { var p = K.nodo('<p class="of-req__txt"></p>'); p.textContent = txt; t.appendChild(p); }
+      /* 18/11 · la de acceso se responde sola al registrar el contrato nuevo (y el que terminó pasa a INACTIVO) */
+      if (esAcceso(r) && g === 'PENDIENTE') {
+        t.appendChild(K.nodo('<p class="of-req__pie sb-auto">' + K.icono('info', 12) + ' Se responde sola cuando registres el contrato nuevo de este documento en AGREGAR CONTRATISTA' +
+          (r.tipo === 'NUEVO CONTRATO' && r.contrato ? '; el contrato ' + K.esc(r.contrato) + ' pasa a INACTIVO.' : '.') + '</p>'));
+      }
 
       if (r.adjuntos && r.adjuntos.length) {
         var ad = K.nodo('<div class="sb-docs"></div>');
@@ -343,7 +349,7 @@
       valor: otraVez ? r.respuesta : '',
       marcador: 'Escribe la respuesta para el contratista…',
       rapidos: esAcceso(r) ? RAPIDOS_ACCESO : RAPIDOS_APP,
-      nota: esAcceso(r) ? 'Le llega por <b>WhatsApp</b> al celular que dejó (todavía no tiene la app). Queda con tu nombre y sin evaluación.'
+      nota: r.origen === 'LOGIN' ? 'Le llega por <b>WhatsApp</b> al celular que dejó (todavía no tiene la app). Queda con tu nombre y sin evaluación.'
                         : 'Le llega como notificación en la app CONTRATISTA y por WhatsApp, y queda en SOLICITUD CONTRATACIÓN.',
       si: otraVez ? 'Guardar y avisar' : 'Responder', icono: 'responder',
       enviar: function (texto) {
