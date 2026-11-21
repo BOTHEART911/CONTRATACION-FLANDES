@@ -560,6 +560,9 @@
       campoTexto(fila1, D, 'contrato', 'N° de contrato', 'Tres dígitos.', { numerico: 3, marcador: 'Ej: 027' });
       campoFecha(fila1, D, 'fechaContrato', 'Fecha del contrato', '', { anioFijo: anio });
       paso2.appendChild(fila1);
+      /* 21/11 · el N° de proceso SECOP II lo registra Contratación al crear (antes lo escribía el contratista).
+         Va impreso en los formatos de todas sus cuentas como CPS-021-año. */
+      campoTexto(paso2, D, 'proceso', 'N° de proceso SECOP II', 'El número del medio en CPS-(aquí)-' + anio + ' del clausulado. Ejemplo: 021.', { numerico: 3, marcador: 'Ej: 021' });
       campoLista(paso2, D, 'tipo', 'Tipo de contrato', '',
         OPCIONES.tipos.map(function (t) { return { valor: t, texto: t.charAt(0) + t.slice(1).toLowerCase() }; }));
       campoPesos(paso2, D, 'valor', 'Valor del contrato', 'El valor en letras se escribe solo.');
@@ -597,6 +600,7 @@
         documento: D.documento, nombre: D.nombre, telefono: V.tipo === 'NUEVO' ? celularRevisar(D.telefono).tel : '', correo: D.correo || '',
         secretaria: D.secretaria, supervisor: D.supervisor, contrato: D.contrato, tipo: D.tipo,
         fechaContrato: D.fechaContrato, valor: String(K.aNumero(D.valor)), cdp: D.cdp, pagos: String(K.aNumero(D.pagos)),
+        proceso: procesoCorto(D.proceso),   /* 21/11 · el CORE lo guarda como CPS-021-año */
         objeto: String(D.objeto || '').replace(/\s+/g, ' ').trim().toUpperCase(), obligaciones: obls,
         soloFila: true,   /* 27/10 · vuelve solo su fila (se parcha la lista), no la lista entera */
         /* 07/10 · el CORE las vuelve a partir con la misma regla y compara */
@@ -609,6 +613,7 @@
         lista: [
           ['Contratista', nombre(D.nombre)], ['Documento', D.documento],
           ['Contrato', ('00' + D.contrato).slice(-3) + ' · ' + D.fechaContrato],
+          ['N° de proceso', procesoTexto(D.proceso, OPCIONES.vigencia)],
           ['Secretaría', titulo(D.secretaria)], ['Supervisor(a)', nombre(D.supervisor)],
           ['Valor', K.pesos(D.valor)], ['Pagos (informes)', String(K.aNumero(D.pagos))], ['CDP', D.cdp], ['Obligaciones', String(obls.length)]
         ],
@@ -638,6 +643,7 @@
     if (!D.supervisor) f.push('el supervisor');
     if (!D.contrato) f.push('el N° de contrato');
     if (!D.fechaContrato) f.push('la fecha del contrato');
+    if (!procesoValido(D.proceso)) f.push('el N° de proceso SECOP II');
     if (!D.tipo) f.push('el tipo de contrato');
     if (!K.aNumero(D.valor)) f.push('el valor');
     var pg = K.aNumero(D.pagos);
@@ -1091,9 +1097,19 @@
      Documento, nombre y N° de contrato no se editan: cambiar de persona
      es una CESIÓN y el número es parte de la llave del contrato. */
 
+  /* 21/11 · N° de proceso SECOP II: se escriben los 3 dígitos del medio (021); se guarda CPS-021-año */
+  function procesoCorto(v) {
+    var t = String(v || '').trim();
+    var m = /(\d{1,4})\D+\d{4}\s*$/.exec(t);
+    var n = (m ? m[1] : t.replace(/\D/g, '')).replace(/^0+/, '');
+    return n && n.length <= 3 ? ('00' + n).slice(-3) : '';
+  }
+  function procesoValido(v) { return !!procesoCorto(v); }
+  function procesoTexto(v, anio) { var n = procesoCorto(v); return n ? 'CPS-' + n + '-' + (anio || new Date().getFullYear()) : '(vacío)'; }
+
   var EDITABLES = [
     ['secretaria', 'Secretaría'], ['supervisor', 'Supervisor(a)'], ['tipo', 'Tipo de contrato'],
-    ['fechaContrato', 'Fecha del contrato'], ['valorInicial', 'Valor inicial'], ['cdp', 'CDP'],
+    ['fechaContrato', 'Fecha del contrato'], ['proceso', 'N° de proceso SECOP II'], ['valorInicial', 'Valor inicial'], ['cdp', 'CDP'],
     ['cdpAdicion', 'CDP 1ª adición'], ['cdpAdicion2', 'CDP 2ª adición'], ['objeto', 'Objeto'], ['obligaciones', 'Obligaciones']
   ];
 
@@ -1108,6 +1124,8 @@
     if (K.norm(D.supervisor) !== K.norm(a.supervisor)) c.supervisor = D.supervisor;
     if (K.norm(D.tipo) !== K.norm(a.tipo)) c.tipo = D.tipo;
     if (String(D.fechaContrato || '') !== String(a.fechaContrato || '')) c.fechaContrato = D.fechaContrato;
+    /* 21/11 · un CORE viejo no manda el proceso (a.proceso undefined): no se toca */
+    if (a.proceso !== undefined && procesoCorto(D.proceso) !== procesoCorto(a.proceso)) c.proceso = procesoCorto(D.proceso);
     if (K.aNumero(D.valorInicial) !== Number(a.valorInicial || 0)) c.valorInicial = String(K.aNumero(D.valorInicial));
     ['cdp', 'cdpAdicion', 'cdpAdicion2'].forEach(function (k) {
       if (String(D[k] || '') !== String(a[k] || '')) c[k] = String(D[k] || '');
@@ -1121,6 +1139,7 @@
 
   function textoDe(k, v) {
     if (k === 'valorInicial') return K.pesos(v);
+    if (k === 'proceso') return procesoTexto(v, OPCIONES && OPCIONES.vigencia);
     if (k === 'obligaciones') return (v || []).length + ((v || []).length === 1 ? ' obligación' : ' obligaciones');
     if (k === 'secretaria') return titulo(v);
     if (k === 'supervisor') return nombre(v);
@@ -1134,6 +1153,7 @@
     if (!D.supervisor) f.push('el supervisor');
     if (!D.tipo) f.push('el tipo de contrato');
     if (!D.fechaContrato) f.push('la fecha del contrato');
+    if (D.proceso !== undefined && String(D.proceso).trim() && !procesoValido(D.proceso)) f.push('el N° de proceso SECOP II (1 a 3 dígitos)');
     if (!K.aNumero(D.valorInicial)) f.push('el valor inicial');
     var re = new RegExp('^' + anio + '\\d{6}$');
     if (!re.test(D.cdp || '')) f.push('el CDP');
@@ -1193,7 +1213,8 @@
 
     var D = {
       secretaria: a.secretaria, supervisor: a.supervisor, tipo: a.tipo, fechaContrato: a.fechaContrato,
-      valorInicial: String(a.valorInicial || ''), cdp: a.cdp, cdpAdicion: a.cdpAdicion, cdpAdicion2: a.cdpAdicion2,
+      valorInicial: String(a.valorInicial || ''), cdp: a.cdp,
+      proceso: a.proceso === undefined ? undefined : procesoCorto(a.proceso), cdpAdicion: a.cdpAdicion, cdpAdicion2: a.cdpAdicion2,
       objeto: a.objeto, obligaciones: numerar(a.obligaciones)
     };
     var f = K.nodo('<form class="kit-tarjeta formulario gs-paso" novalidate></form>');
@@ -1225,6 +1246,11 @@
     campoLista(fila1, D, 'tipo', 'Tipo de contrato', '',
       conActual(op.tipos, a.tipo, function (t) { return t.charAt(0) + t.slice(1).toLowerCase(); }));
     f.appendChild(fila1);
+    /* 21/11 · el N° de proceso lo registra Contratación (un CORE viejo no lo manda: no se pinta) */
+    if (a.proceso !== undefined) {
+      campoTexto(f, D, 'proceso', 'N° de proceso SECOP II', a.proceso ? 'Hoy: ' + a.proceso + '. Escribe el número del medio (021).' :
+        'Este contrato no lo tiene: sin él, el contratista no puede ingresar su primera cuenta. Escribe el número del medio en CPS-(aquí)-' + anio + '.', { numerico: 3, marcador: 'Ej: 021' });
+    }
 
     var adic = (e.adicion1 || 0) + (e.adicion2 || 0);
     var ecoTotal = K.nodo('<p class="gs-calc gs-calc--total" aria-live="polite"></p>');

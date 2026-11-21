@@ -122,7 +122,7 @@
 
   GUIAS.agregar = function () {
     return {
-      guia: 'Primero **el documento**: la app te dice si es una persona nueva, alguien que ya trabajó con la Alcaldía (se traen sus datos y su contraseña) o alguien con contrato **activo** (solo se deja en otra secretaría). Después llenas el contrato con su **cantidad de pagos (informes)**, que el contratista verá como "1 de N" sin escribirla; el valor en letras y el conteo de obligaciones salen solos.',
+      guia: 'Primero **el documento**: la app te dice si es una persona nueva, alguien que ya trabajó con la Alcaldía (se traen sus datos y su contraseña) o alguien con contrato **activo** (solo se deja en otra secretaría). Después llenas el contrato con su **N° de proceso SECOP II** (los tres dígitos del medio: en CPS-021-2026 escribe 021; ya no lo escribe el contratista y va impreso en todos sus formatos) y su **cantidad de pagos (informes)**, que el contratista verá como "1 de N" sin escribirla; el valor en letras y el conteo de obligaciones salen solos.',
       botones: [
         { texto: '¿Cómo pego las obligaciones?', responde: function () {
             return 'Cópialas del clausulado **con su numeración** (1. 2. 3. …). La app las separa por el número, no por los saltos de línea, y te muestra cuántas contó antes de guardar. Máximo 26.';

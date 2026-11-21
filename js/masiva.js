@@ -36,7 +36,9 @@
     [/^SECRETARIA/, 'secretaria'], [/^SUPERVISOR/, 'supervisor'], [/^CELULAR|^TELEFONO/, 'telefono'], [/^CORREO/, 'correo'],
     [/^OBLIGACIONES/, 'obligaciones'],
     /* 27/10 · opcional: la cantidad de pagos (informes) del contrato */
-    [/^PAGOS|^CANTIDAD (DE )?PAGOS|^TOTAL (DE )?(PAGOS|INFORMES)/, 'pagos']
+    [/^PAGOS|^CANTIDAD (DE )?PAGOS|^TOTAL (DE )?(PAGOS|INFORMES)/, 'pagos'],
+    /* 21/11 · opcional: el N° de proceso SECOP II (021 o CPS-021-2026) */
+    [/^((N|NO|NRO|NUMERO)( DE)? )?PROCESO/, 'proceso']
   ];
 
   function configurar(o) { C = o || {}; }
@@ -131,6 +133,7 @@
       x.valor = typeof x.valor === 'number' ? Math.round(x.valor) : texto(x.valor).replace(/[^\d]/g, '');
       x.telefono = texto(x.telefono).replace(/\D/g, '');
       x.pagos = typeof x.pagos === 'number' ? String(Math.round(x.pagos)) : texto(x.pagos).replace(/\D/g, '');
+      x.proceso = typeof x.proceso === 'number' ? String(Math.round(x.proceso)) : texto(x.proceso);
       x.fechaContrato = fechaExcel(x.fechaContrato);
       ['nombre', 'tipo', 'objeto', 'secretaria', 'supervisor', 'correo'].forEach(function (k) { x[k] = texto(x[k]); });
       var lista = [], avisos = [];
