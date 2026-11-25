@@ -538,6 +538,17 @@
       var bloqueadas = (V.activas || []).map(function (a) { return K.norm(a.secretaria); });
       var anio = OPCIONES.vigencia;
       D.nombre = V.nombre || '';
+      /* 25/11 · los datos de la solicitud del contratista (una vez por validación) */
+      var sol = V.solicitud && V.solicitud.datos ? V.solicitud : null;
+      if (sol && !V._pre) {
+        V._pre = true;
+        var x = sol.datos;
+        D.contrato = x.contrato || ''; D.fechaContrato = x.fechaContrato || ''; D.proceso = x.proceso || '';
+        D.tipo = igualOpcion(OPCIONES.tipos || [], x.tipo) || '';
+        D.valor = x.valor ? String(x.valor) : ''; D.pagos = x.pagos ? String(x.pagos) : ''; D.cdp = x.cdp || '';
+        if (x.secretaria) D.secretaria = igualOpcion((OPCIONES.secretarias || []).map(function (s) { return s.nombre; }), x.secretaria) || D.secretaria;
+      }
+      if (sol) cintaSolicitud(paso2, sol, 'clausulado');
 
       paso2.appendChild(K.nodo('<h3 class="grupo__t">La persona</h3>'));
       var inpNom = campoTexto(paso2, D, 'nombre', 'Nombre completo', V.tipo === 'NUEVO' ? 'Como está en la cédula: nombres y apellidos.' : 'Viene de sus contratos anteriores.', { mayus: true });
@@ -752,11 +763,19 @@
       D.valor = String(cual === 1 ? c.adicion1 : c.adicion2);
       D.cdp = String(cual === 1 ? c.cdpAdicion : c.cdpAdicion2).replace(/\D/g, '');
     }
+    /* 25/11 · los datos del otrosí que adelantó el contratista (solicitud de ADICIÓN abierta) */
+    var solAd = !corrigiendo && c.solicitudAdicion && c.solicitudAdicion.datos ? c.solicitudAdicion : null;
+    if (solAd) {
+      D.inicio = solAd.datos.inicio || ''; D.fin = solAd.datos.fin || '';
+      D.valor = solAd.datos.valor ? String(solAd.datos.valor) : ''; D.cdp = solAd.datos.cdp || '';
+      cintaSolicitud(f, solAd, 'otrosí');
+    }
     var inf = c.informes || {};
     /* informes: el primario se congela una sola vez (si ya está, no se pide) */
     var primarioFijo = !!inf.primario;   /* TOTAL INFORMES PRIMARIO ya congelado */
     D.informesPrimario = String(inf.primario || c.informesCuentas || c.meses || '');
     D.informesAdicion = corrigiendo ? String(cual === 1 ? inf.adicion1 : inf.adicion2 || '') : '';
+    if (solAd && solAd.datos.pagos) { D.informesAdicion = String(solAd.datos.pagos); D._tocadoInf = true; D._pagosSol = Number(solAd.datos.pagos); }
 
     var fila = K.nodo('<div class="campo-fila"></div>');
     campoFecha(fila, D, 'inicio', 'Inicio de la adición', '', { anioFijo: anio, alCambiar: calc });
@@ -812,6 +831,11 @@
       var a = K.aNumero(D.informesPrimario), b = K.aNumero(D.informesAdicion);
       var previo = cual === 2 ? (inf.adicion1 || 0) : 0;
       totalInf.innerHTML = (a && b) ? 'Total de informes del contrato: <b>' + (a + previo + b) + '</b> (' + a + (previo ? ' + ' + previo : '') + ' + ' + b + ')' : '';
+      /* 25/11 · si el contratista escribió los pagos, se muestra lo que daría el valor cuando no coincide */
+      if (D._pagosSol && v) {
+        var cuota2 = c.valorInicial && a ? c.valorInicial / a : 0, porValor = cuota2 ? Math.round(v / cuota2) : 0;
+        if (porValor && porValor !== b) totalInf.innerHTML += '<br><span class="gs-calc--mal">Por el valor serían ' + porValor + ' pagos; el contratista escribió ' + D._pagosSol + '. Revísalo en el otrosí.</span>';
+      }
     }
 
     botones(f, corrigiendo ? 'Guardar la corrección' : 'Registrar la adición', null, function () { volverAFicha(c); });
@@ -1105,6 +1129,35 @@
     return n && n.length <= 3 ? ('00' + n).slice(-3) : '';
   }
   function procesoValido(v) { return !!procesoCorto(v); }
+
+  /* ══════════════ 25/11 · PRECARGA DESDE LA SOLICITUD DEL CONTRATISTA ══════════════
+     validarDocumento (V.solicitud) y contratoPara (c.solicitudAdicion) traen, en el
+     MISMO viaje, la solicitud abierta con los datos que el contratista copió de su
+     clausulado u otrosí (Solicitud1125.gs). Todo queda editable. */
+  function igualOpcion(lista, v) {
+    for (var i = 0; i < lista.length; i++) if (K.norm(lista[i]) === K.norm(v || '')) return lista[i];
+    return '';
+  }
+  function cintaSolicitud(donde, sol, que) {
+    if (!sol || !sol.datos) return null;
+    var t = K.nodo('<div class="gs-cinta" role="note"><span class="gs-cinta__ico" aria-hidden="true">' + K.icono('documento', 18) + '</span>' +
+      '<div class="gs-cinta__txt"><p class="gs-cinta__t"></p><p class="gs-cinta__p"></p><div class="gs-cinta__b"></div></div></div>');
+    t.querySelector('.gs-cinta__t').textContent = 'Datos que escribió el contratista en la solicitud ' + sol.id + (sol.fecha ? ' del ' + sol.fecha : '');
+    t.querySelector('.gs-cinta__p').textContent = 'Revísalos contra el ' + que + ': todos los campos se pueden cambiar.';
+    var bx = t.querySelector('.gs-cinta__b');
+    (sol.adjuntos || []).forEach(function (u) {
+      var b = K.nodo('<button type="button" class="kit-btn kit-btn--plano gs-cinta__ver">' + K.icono('pdf', 15) + ' Ver el ' + que + '</button>');
+      b.addEventListener('click', function () {
+        if (K.piezas.visor && K.piezas.visor.abrir) K.piezas.visor.abrir([{ url: u, titulo: sol.id + ' · ' + que }]);
+        else window.open(u, '_blank', 'noopener');
+      });
+      bx.appendChild(b);
+    });
+    if (!(sol.adjuntos || []).length && sol.purgado) bx.appendChild(K.nodo('<small class="gs-cinta__nota">El PDF ya se borró (' + K.esc(String(sol.purgado).slice(0, 10)) + ').</small>'));
+    if (!bx.children.length) bx.remove();
+    donde.appendChild(t);
+    return t;
+  }
   function procesoTexto(v, anio) { var n = procesoCorto(v); return n ? 'CPS-' + n + '-' + (anio || new Date().getFullYear()) : '(vacío)'; }
 
   var EDITABLES = [

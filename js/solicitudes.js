@@ -181,6 +181,9 @@
       marcas.appendChild(K.nodo('<span class="ct-marca sb-tipo">' + K.icono(esAcceso(r) ? 'llave' : (r.tipo === 'GESTION' ? 'check' : 'documento'), 11) + ' ' + K.esc(r.tipoTexto || r.tipo) + '</span>'));
       marcas.appendChild(K.nodo('<span class="ct-marca">' + K.icono('reloj', 11) + ' ' + K.esc(O.cuando(r._iso) || r.fecha) + '</span>'));
       if (esAcceso(r)) marcas.appendChild(K.nodo('<span class="ct-marca sb-marca--entrada">' + (r.origen === 'LOGIN' ? 'Desde la entrada · sin acceso' : 'Desde la app · contrato terminado') + '</span>'));
+      /* 25/11 · trae los datos del clausulado u otrosí (salen precargados al registrar) */
+      if (r.datos && (esAcceso(r) || r.tipo === 'ADICION')) marcas.appendChild(K.nodo('<span class="ct-marca ct-marca--datos">' + K.icono('check', 11) + ' Con datos ' + (r.tipo === 'ADICION' ? 'del otrosí' : 'del clausulado') + '</span>'));
+      if (r.datos && r.datos.purgado) marcas.appendChild(K.nodo('<span class="ct-marca">' + K.icono('basura', 11) + ' PDF borrado ' + K.esc(String(r.datos.purgado).slice(0, 10)) + '</span>'));
       if (esAcceso(r) && r.activoAhora) marcas.appendChild(K.nodo('<span class="ct-marca ct-marca--adic">' + K.icono('check', 11) + ' Ya tiene contrato ACTIVO</span>'));
       t.appendChild(marcas);
 
@@ -253,6 +256,12 @@
           var bA = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('persona', 15) + ' Agregar contratista</button>');
           bA.addEventListener('click', function () { C.irA('agregar/' + encodeURIComponent(r.documento)); });
           acc.appendChild(bA);
+        }
+        /* 25/11 · la ADICIÓN con datos se registra desde aquí: el formulario sale precargado */
+        if (r.tipo === 'ADICION' && r.datos && g === 'PENDIENTE' && r.idContrato && C.puede && C.puede('adicion')) {
+          var bAd = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('mas', 15) + ' Registrar la adición</button>');
+          bAd.addEventListener('click', function () { C.irA('adicion/' + encodeURIComponent(r.idContrato)); });
+          acc.appendChild(bAd);
         }
         var bB = K.nodo('<button type="button" class="kit-btn kit-btn--plano kit-btn--malo sb-borrar" aria-label="Borrar la solicitud ' + K.esc(r.id) + '">' + K.icono('basura', 15) + '</button>');
         bB.addEventListener('click', function () { borrar(r); });

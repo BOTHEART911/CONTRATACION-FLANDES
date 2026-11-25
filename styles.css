@@ -2997,3 +2997,19 @@
 .ini2-hero .acceso--principal, .ini2-hero .acceso--principal:hover { background: transparent; }
 .ini2-hero .acceso--principal { z-index: 1; }
 .ini2-hero .acceso__burbuja { position: absolute; z-index: 2; }
+
+/* 25/11 · precarga desde la solicitud del contratista (datos del clausulado u otrosí) */
+.gs-cinta {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px 14px; margin: 0 0 12px;
+  border: 1px solid rgba(var(--k-marca-rgb), .2); border-radius: 14px;
+  background: rgba(var(--k-marca-rgb), .05);
+}
+.gs-cinta__ico { color: var(--k-marca); flex: 0 0 auto; margin-top: 1px; }
+.gs-cinta__txt { flex: 1 1 auto; min-width: 0; }
+.gs-cinta__t { margin: 0; font: 600 .92rem/1.35 var(--k-fuente); color: var(--k-tinta); }
+.gs-cinta__p { margin: 2px 0 0; font: 400 .84rem/1.45 var(--k-fuente); color: var(--k-apagado); }
+.gs-cinta__b { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.gs-cinta__ver { min-height: 44px; }
+.gs-cinta__nota { font-size: .8rem; color: var(--k-apagado); }
+.ct-marca--datos { color: var(--k-ok); border-color: rgba(21, 128, 61, .3); }
