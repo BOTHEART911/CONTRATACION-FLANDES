@@ -3059,3 +3059,12 @@
 .gs-txtcapa__cab h3 { margin: 0; font: 600 1rem/1.3 var(--k-fuente-titulo); }
 .gs-txtcapa__cab .kit-btn { min-height: 44px; min-width: 44px; }
 .gs-txtcapa .gs-doc__texto { flex: 1 1 auto; }
+
+/* 26/11 · planilla de empleados de la empresa (persona jurídica sin IBC propio) */
+.rv-emp {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 0 0 12px; padding: 10px 12px;
+  border: 1px solid rgba(var(--k-marca-rgb), .3); border-radius: var(--k-r-sm);
+  background: var(--k-papel-2); color: var(--k-tinta); font-size: .9rem; line-height: 1.4;
+}
+.rv-emp svg { flex: 0 0 auto; margin-top: 2px; color: var(--k-marca); }
