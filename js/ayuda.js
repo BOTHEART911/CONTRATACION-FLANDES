@@ -301,7 +301,8 @@
     return {
       guia: 'Aquí llega lo que piden los contratistas: **acceso** (desde la entrada de la app, cuando su contrato está inactivo o todavía no están registrados) y **adición, cesión, modificación o corrección y suspensión** (desde su app). ' +
             'Toca **Responder** (le llega por WhatsApp o en su app, sin evaluación), registra una **Gestión** con lo que hiciste, o **borra** las que sean basura. ' +
-            'Si pidió acceso y aún no tiene contrato activo, **Agregar contratista** abre el registro con su documento ya validado.',
+            'En las de **contrato nuevo** y **adición**, toca **Validar**: valida el documento (y, en la adición, la secretaría y que el contrato siga ACTIVO) y abre el registro con los datos precargados y el clausulado o el otrosí al lado. ' +
+            'En el contrato nuevo, el objeto y las obligaciones ya vienen sacados del clausulado: revísalos. Al guardar, la solicitud sale sola de la bandeja.',
       botones: [
         { texto: '¿Cuántas faltan por responder?', responde: function () {
             var d = SB() && SB()._datos(); if (!d) return 'Todavía está cargando.';

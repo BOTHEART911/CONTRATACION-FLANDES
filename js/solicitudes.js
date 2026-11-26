@@ -204,7 +204,7 @@
       if (txt) { var p = K.nodo('<p class="of-req__txt"></p>'); p.textContent = txt; t.appendChild(p); }
       /* 18/11 · la de acceso se responde sola al registrar el contrato nuevo (y el que terminó pasa a INACTIVO) */
       if (esAcceso(r) && g === 'PENDIENTE') {
-        t.appendChild(K.nodo('<p class="of-req__pie sb-auto">' + K.icono('info', 12) + ' Se responde sola cuando registres el contrato nuevo de este documento en AGREGAR CONTRATISTA' +
+        t.appendChild(K.nodo('<p class="of-req__pie sb-auto">' + K.icono('info', 12) + ' Toca VALIDAR: sale de la bandeja sola cuando registres el contrato nuevo de este documento' +
           (r.tipo === 'NUEVO CONTRATO' && r.contrato ? '; el contrato ' + K.esc(r.contrato) + ' pasa a INACTIVO.' : '.') + '</p>'));
       }
 
@@ -243,8 +243,18 @@
 
       if (puedeEscribir) {
         var acc = K.nodo('<div class="ct-acc"></div>');
+        /* 25/11 noche (Oss) · VALIDAR: valida y abre el registro (contrato nuevo) o la adición, precargados */
+        var validar = (esAcceso(r) && g === 'PENDIENTE' && !r.activoAhora && C.puede && C.puede('agregarContratista')) ? 'acceso'
+          : (r.tipo === 'ADICION' && g === 'PENDIENTE' && r.idContrato && C.puede && C.puede('adicion')) ? 'adicion' : '';
+        if (validar) {
+          var bV = K.nodo('<button type="button" class="kit-btn kit-btn--marca sb-validar">' + K.icono('check', 15) + ' Validar</button>');
+          bV.addEventListener('click', function () {
+            C.irA(validar === 'acceso' ? 'agregar/' + encodeURIComponent(r.documento) : 'adicion/' + encodeURIComponent(r.idContrato));
+          });
+          acc.appendChild(bV);
+        }
         if (r.tipo !== 'GESTION') {
-          var bR = K.nodo('<button type="button" class="kit-btn ' + (g === 'PENDIENTE' ? 'kit-btn--marca' : 'kit-btn--plano') + '">' +
+          var bR = K.nodo('<button type="button" class="kit-btn ' + (g === 'PENDIENTE' && !validar ? 'kit-btn--marca' : 'kit-btn--plano') + '">' +
             K.icono('responder', 15) + (g === 'PENDIENTE' ? ' Responder' : ' Corregir respuesta') + '</button>');
           bR.addEventListener('click', function () { responder(r, g !== 'PENDIENTE'); });
           acc.appendChild(bR);
@@ -252,17 +262,7 @@
         var bG = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('check', 15) + ' Gestión</button>');
         bG.addEventListener('click', function () { gestion(r); });
         acc.appendChild(bG);
-        if (esAcceso(r) && !r.activoAhora && C.puede && C.puede('agregarContratista')) {
-          var bA = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('persona', 15) + ' Agregar contratista</button>');
-          bA.addEventListener('click', function () { C.irA('agregar/' + encodeURIComponent(r.documento)); });
-          acc.appendChild(bA);
-        }
-        /* 25/11 · la ADICIÓN con datos se registra desde aquí: el formulario sale precargado */
-        if (r.tipo === 'ADICION' && r.datos && g === 'PENDIENTE' && r.idContrato && C.puede && C.puede('adicion')) {
-          var bAd = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('mas', 15) + ' Registrar la adición</button>');
-          bAd.addEventListener('click', function () { C.irA('adicion/' + encodeURIComponent(r.idContrato)); });
-          acc.appendChild(bAd);
-        }
+        /* «Agregar contratista» y «Registrar la adición» quedaron dentro de VALIDAR (no se repiten botones) */
         var bB = K.nodo('<button type="button" class="kit-btn kit-btn--plano kit-btn--malo sb-borrar" aria-label="Borrar la solicitud ' + K.esc(r.id) + '">' + K.icono('basura', 15) + '</button>');
         bB.addEventListener('click', function () { borrar(r); });
         acc.appendChild(bB);

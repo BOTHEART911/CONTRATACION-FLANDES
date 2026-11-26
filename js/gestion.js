@@ -548,7 +548,14 @@
         D.valor = x.valor ? String(x.valor) : ''; D.pagos = x.pagos ? String(x.pagos) : ''; D.cdp = x.cdp || '';
         if (x.secretaria) D.secretaria = igualOpcion((OPCIONES.secretarias || []).map(function (s) { return s.nombre; }), x.secretaria) || D.secretaria;
       }
-      if (sol) cintaSolicitud(paso2, sol, 'clausulado');
+      var cintaC = sol ? cintaSolicitud(paso2, sol, 'clausulado') : null;
+      /* 25/11 noche · objeto y obligaciones sacados del clausulado (una vez por validación) */
+      var sug = sol && sol.sugerencia;
+      if (sug && !V._preSug) {
+        V._preSug = true;
+        if (sug.objeto && !D.objeto) D.objeto = sug.objeto;
+        if (sug.obligaciones && sug.obligaciones.length && !D.obligaciones) D.obligaciones = numerar(sug.obligaciones);
+      }
 
       paso2.appendChild(K.nodo('<h3 class="grupo__t">La persona</h3>'));
       var inpNom = campoTexto(paso2, D, 'nombre', 'Nombre completo', V.tipo === 'NUEVO' ? 'Como está en la cédula: nombres y apellidos.' : 'Viene de sus contratos anteriores.', { mayus: true });
@@ -580,7 +587,7 @@
       /* 27/10 · el total de informes lo fija Contratación: el contratista ve "1 de N" sin escribirlo */
       campoTexto(paso2, D, 'pagos', 'Cantidad de pagos (informes)', 'Los informes o pagos que fija el clausulado, de 1 a 24. El contratista lo verá desde su primer informe y no tendrá que escribirlo.', { numerico: 2, marcador: 'Ej: 10' });
       campoCodigo(paso2, D, 'cdp', 'CDP', 'Escribe el final del CDP; el año lo pone la app. No puede estar usado en otro contrato.', anio);
-      campoTexto(paso2, D, 'objeto', 'Objeto del contrato', 'Se guarda en mayúsculas y en un solo párrafo.', { area: true, filas: 3 });
+      var objInp = campoTexto(paso2, D, 'objeto', 'Objeto del contrato', 'Se guarda en mayúsculas y en un solo párrafo.', { area: true, filas: 3 });
 
       var obl = campoTexto(paso2, D, 'obligaciones', 'Obligaciones',
         'Pégalas del clausulado con su numeración (1. 2. 3. …). Se separan por el número, no por los saltos de línea. Debajo ves cómo quedan. Máximo 26.',
@@ -593,6 +600,23 @@
 
       botones(paso2, 'Registrar contrato', null, function () { C.irA('contratistas'); });
       if (K.piezas.fechas) K.piezas.fechas.montar(paso2);
+      if (D.obligaciones) { pintarObl(); setTimeout(function () { obl.style.height = 'auto'; obl.style.height = (obl.scrollHeight + 4) + 'px'; }, 0); }
+      /* 25/11 noche · el clausulado al lado (texto seleccionable y PDF) */
+      if (sol && (sol.adjuntos || []).length) {
+        var PC = panelClausulado(caja, cintaC, sol);
+        if (sug && sug.texto) PC.texto(sug.texto);
+        else {
+          K.pedir('solicitudTexto', { id: sol.id }, { ms: 60000 }).then(function (r) {
+            if (!caja.isConnected) return;
+            PC.texto(r.texto);
+            /* llena lo que siga vacío (no pisa lo que ya escribieron) */
+            if (r.objeto && !String(D.objeto || '').trim()) { objInp.value = r.objeto; objInp.dispatchEvent(new Event('input', { bubbles: true })); }
+            if (r.obligaciones && r.obligaciones.length && !String(D.obligaciones || '').trim()) {
+              obl.value = numerar(r.obligaciones); obl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }, function (e) { if (caja.isConnected) PC.falla((e && e.message) || 'No se pudo leer el clausulado. Mira el PDF.'); });
+        }
+      }
       paso2.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -766,9 +790,17 @@
     /* 25/11 · los datos del otrosí que adelantó el contratista (solicitud de ADICIÓN abierta) */
     var solAd = !corrigiendo && c.solicitudAdicion && c.solicitudAdicion.datos ? c.solicitudAdicion : null;
     if (solAd) {
+      /* 25/11 noche · VALIDAR: el documento, la secretaría y que el contrato siga ACTIVO
+         (un contratista puede tener contratos en dos secretarías) */
+      var val = [
+        { ok: c.estado === 'ACTIVO', t: 'Contrato ' + c.contrato + (c.estado === 'ACTIVO' ? ' ACTIVO' : ' en estado ' + c.estado + ': no se puede adicionar') },
+        { ok: !solAd.documento || solAd.documento === c.documento, t: 'Documento ' + c.documento + (!solAd.documento || solAd.documento === c.documento ? ' coincide' : ' NO coincide con el de la solicitud (' + solAd.documento + ')') },
+        { ok: !solAd.secretaria || !c.secretaria || K.norm(solAd.secretaria) === K.norm(c.secretaria),
+          t: 'Secretaría ' + (c.secretaria || '—') + ((!solAd.secretaria || !c.secretaria || K.norm(solAd.secretaria) === K.norm(c.secretaria)) ? ' coincide' : ' NO coincide con la de la solicitud (' + solAd.secretaria + ')') }
+      ];
       D.inicio = solAd.datos.inicio || ''; D.fin = solAd.datos.fin || '';
       D.valor = solAd.datos.valor ? String(solAd.datos.valor) : ''; D.cdp = solAd.datos.cdp || '';
-      cintaSolicitud(f, solAd, 'otrosí');
+      cintaSolicitud(f, solAd, 'otrosí', val);
     }
     var inf = c.informes || {};
     /* informes: el primario se congela una sola vez (si ya está, no se pide) */
@@ -1138,7 +1170,7 @@
     for (var i = 0; i < lista.length; i++) if (K.norm(lista[i]) === K.norm(v || '')) return lista[i];
     return '';
   }
-  function cintaSolicitud(donde, sol, que) {
+  function cintaSolicitud(donde, sol, que, validacion) {
     if (!sol || !sol.datos) return null;
     var t = K.nodo('<div class="gs-cinta" role="note"><span class="gs-cinta__ico" aria-hidden="true">' + K.icono('documento', 18) + '</span>' +
       '<div class="gs-cinta__txt"><p class="gs-cinta__t"></p><p class="gs-cinta__p"></p><div class="gs-cinta__b"></div></div></div>');
@@ -1154,9 +1186,87 @@
       bx.appendChild(b);
     });
     if (!(sol.adjuntos || []).length && sol.purgado) bx.appendChild(K.nodo('<small class="gs-cinta__nota">El PDF ya se borró (' + K.esc(String(sol.purgado).slice(0, 10)) + ').</small>'));
+    /* 25/11 noche · VALIDAR: lo que se comprobó contra el contrato (adición) */
+    if (validacion) {
+      var vl = K.nodo('<ul class="gs-cinta__val"></ul>');
+      validacion.forEach(function (x) {
+        var li = K.nodo('<li class="gs-cinta__v' + (x.ok ? '' : ' gs-cinta__v--mal') + '">' + K.icono(x.ok ? 'check' : 'aviso', 14) + ' <span></span></li>');
+        li.querySelector('span').textContent = x.t;
+        vl.appendChild(li);
+      });
+      t.querySelector('.gs-cinta__txt').insertBefore(vl, bx.parentNode ? bx : null);
+      if (validacion.some(function (x) { return !x.ok; })) t.classList.add('gs-cinta--mal');
+    }
     if (!bx.children.length) bx.remove();
     donde.appendChild(t);
     return t;
+  }
+
+  /* ══════════════ 25/11 noche · EL CLAUSULADO AL LADO DEL FORMULARIO ══════════════
+     PC (1100 px o más): un panel a la derecha con el TEXTO del clausulado (se puede
+     seleccionar y copiar) y el PDF. Celular: «Ver el texto» abre una capa con el
+     texto seleccionable. El texto lo saca el CORE (cola k:'texto'); si aún no está,
+     se pide aquí en segundo plano (solicitudTexto) sin frenar el formulario. */
+  function urlVista(u) {
+    var m = /\/d\/([-\w]{20,})/.exec(String(u || '')) || /[?&]id=([-\w]{20,})/.exec(String(u || ''));
+    return m ? 'https://drive.google.com/file/d/' + m[1] + '/preview' : String(u || '');
+  }
+  function capaTexto(titulo, texto) {
+    var c = K.nodo('<div class="gs-txtcapa" role="dialog" aria-modal="true"><div class="gs-txtcapa__caja">' +
+      '<div class="gs-txtcapa__cab"><h3></h3><button type="button" class="kit-btn kit-btn--plano" aria-label="Cerrar">' + K.icono('cerrar', 18) + '</button></div>' +
+      '<div class="gs-doc__texto" tabindex="0"></div></div></div>');
+    c.querySelector('h3').textContent = titulo;
+    c.querySelector('.gs-doc__texto').textContent = texto;
+    function cerrar() { c.remove(); document.removeEventListener('keydown', esc); }
+    function esc(ev) { if (ev.key === 'Escape') cerrar(); }
+    c.querySelector('button').addEventListener('click', cerrar);
+    c.addEventListener('click', function (ev) { if (ev.target === c) cerrar(); });
+    document.addEventListener('keydown', esc);
+    document.body.appendChild(c);
+    c.querySelector('.gs-doc__texto').focus();
+  }
+  /** Monta el panel y devuelve { texto(t) } para llenarlo cuando llegue. */
+  function panelClausulado(caja, cinta, sol) {
+    var viejo = caja.querySelector('.gs-doc');
+    if (viejo) viejo.remove();
+    caja.classList.add('gs--con-doc');
+    var P = K.nodo('<aside class="gs-doc kit-tarjeta" aria-label="Clausulado de la solicitud">' +
+      '<div class="gs-doc__cab"><h3 class="gs-doc__t"></h3>' +
+      '<div class="gs-doc__tabs" role="tablist">' +
+      '<button type="button" role="tab" aria-selected="true" data-v="texto">' + K.icono('copiar', 15) + ' Texto</button>' +
+      '<button type="button" role="tab" aria-selected="false" data-v="pdf">' + K.icono('pdf', 15) + ' PDF</button></div></div>' +
+      '<p class="gs-doc__ayuda">Selecciona y copia lo que necesites. El objeto y las obligaciones ya se pasaron al formulario: revísalos.</p>' +
+      '<div class="gs-doc__texto" tabindex="0"><p class="gs-doc__leyendo">Leyendo el clausulado…</p></div>' +
+      '<iframe class="gs-doc__pdf" title="PDF del clausulado" hidden loading="lazy"></iframe></aside>');
+    P.querySelector('.gs-doc__t').textContent = 'Clausulado · ' + sol.id;
+    var txt = P.querySelector('.gs-doc__texto'), ifr = P.querySelector('.gs-doc__pdf');
+    [].forEach.call(P.querySelectorAll('[role=tab]'), function (b) {
+      b.addEventListener('click', function () {
+        [].forEach.call(P.querySelectorAll('[role=tab]'), function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+        var pdf = b.getAttribute('data-v') === 'pdf';
+        txt.hidden = pdf; ifr.hidden = !pdf;
+        if (pdf && !ifr.src && (sol.adjuntos || [])[0]) ifr.src = urlVista(sol.adjuntos[0]);
+      });
+    });
+    caja.appendChild(P);
+    var TEXTO = '';
+    /* celular: el botón «Ver el texto» en la cinta */
+    var bT = null;
+    if (cinta) {
+      var bx = cinta.querySelector('.gs-cinta__b');
+      if (!bx) { bx = K.nodo('<div class="gs-cinta__b"></div>'); cinta.querySelector('.gs-cinta__txt').appendChild(bx); }
+      bT = K.nodo('<button type="button" class="kit-btn kit-btn--plano gs-cinta__ver gs-solo-movil" disabled>' + K.icono('copiar', 15) + ' Ver el texto</button>');
+      bT.addEventListener('click', function () { if (TEXTO) capaTexto('Clausulado · ' + sol.id, TEXTO); });
+      bx.appendChild(bT);
+    }
+    return {
+      texto: function (t) {
+        TEXTO = String(t || '');
+        txt.textContent = TEXTO || 'No se pudo sacar el texto de este PDF (puede ser escaneado). Mira el PDF.';
+        if (bT) bT.disabled = !TEXTO;
+      },
+      falla: function (m) { txt.innerHTML = ''; txt.appendChild(K.nodo('<p class="gs-doc__leyendo"></p>')).textContent = m; }
+    };
   }
   function procesoTexto(v, anio) { var n = procesoCorto(v); return n ? 'CPS-' + n + '-' + (anio || new Date().getFullYear()) : '(vacío)'; }
 
