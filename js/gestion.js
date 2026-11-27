@@ -853,10 +853,12 @@
         tope.textContent = pasa ? 'Se pasa del 50 % del valor inicial: el tope es ' + K.pesos(Math.floor(c.valorInicial / 2) - otra) + '.'
                                 : 'Valor final del contrato: ' + K.pesos(c.valorInicial + v + otra) + '.';
         tope.classList.toggle('gs-calc--mal', pasa);
-        /* los informes de la adición se proponen con el valor de cada pago */
+        /* los informes de la adición se proponen con el valor de cada pago,
+           HACIA ARRIBA (27/11, caso LINA 255): 1 mes y 7 días = 4.316.667 con
+           cuotas de 3.500.000 son 2 pagos (el mes y los 7 días), no 1 */
         var cuota = c.valorInicial && K.aNumero(D.informesPrimario) ? c.valorInicial / K.aNumero(D.informesPrimario) : 0;
         if (cuota && !D._tocadoInf && !corrigiendo) {
-          var prop = Math.round(v / cuota);
+          var prop = Math.ceil(v / cuota - 0.001);
           if (prop) { D.informesAdicion = String(prop); iAd.value = D.informesAdicion; }
         }
       } else tope.textContent = '';
